@@ -1,0 +1,255 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
+import { Eye, EyeOff, Home, Search } from 'lucide-react'
+
+const ROLES = [
+  {
+    id: 1,
+    code: 'BUYER',
+    label: 'Tražim nekretninu',
+    description: 'Pregledavam oglase, spremlam favorite i zakazujem posjete',
+    icon: Search,
+  },
+  {
+    id: 2,
+    code: 'SELLER',
+    label: 'Prodajem nekretninu',
+    description: 'Objavljujem oglase i upravljam upitima kupaca',
+    icon: Home,
+  },
+]
+
+export default function RegisterPage() {
+  const navigate = useNavigate()
+  const { signUp } = useAuth()
+
+  const [step, setStep] = useState(1)
+  const [selectedRole, setSelectedRole] = useState(null)
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false)
+
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role)
+    setStep(2)
+  }
+
+  const handleChange = (e) => {
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (loading) return // sprječava dvostruki submit
+    setError(null)
+
+    if (form.password !== form.confirmPassword) {
+      setError('Lozinke se ne podudaraju.')
+      return
+    }
+    if (form.password.length < 6) {
+      setError('Lozinka mora imati najmanje 6 znakova.')
+      return
+    }
+
+    setLoading(true)
+    console.log('[RegisterPage] Pokušaj registracije:', form.email, '| Rola:', selectedRole.code)
+
+    const { data, error: err } = await signUp({
+      email: form.email,
+      password: form.password,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      roleId: selectedRole.id,
+    })
+
+    setLoading(false)
+
+    if (err) {
+      console.error('[RegisterPage] Registracija neuspješna:', err.message)
+      const msg =
+        err.message.includes('already registered')
+          ? 'Ovaj email je već registriran. Pokušaj se prijaviti.'
+          : err.message.includes('rate')
+            ? 'Previše pokušaja. Pričekaj par minuta pa probaj ponovo.'
+            : err.message.includes('valid email')
+              ? 'Unesi ispravnu email adresu.'
+              : `Greška: ${err.message}`
+      setError(msg)
+      return
+    }
+
+    // Uspješna registracija — samo provjeri sesiju
+    if (data?.session) {
+      setSuccess(true)
+      setNeedsEmailConfirm(false)
+      setTimeout(() => navigate('/', { replace: true }), 1500)
+    } else {
+      // Nema sesije ali user postoji — redirect na login
+      setSuccess(true)
+      setNeedsEmailConfirm(false)
+      setTimeout(() => navigate('/', { replace: true }), 1500)
+    }
+  }
+
+  /* ─── Success screen ─── */
+  if (success) {
+    // Ako email confirm nije potreban, kratka poruka pa redirect
+    if (!needsEmailConfirm) {
+      return (
+        <div className="min-h-[80vh] flex items-center justify-center p-4">
+          <div className="text-center max-w-sm">
+            <div className="text-5xl mb-4">✅</div>
+            <h2 className="text-xl font-bold mb-2">Račun kreiran!</h2>
+            <p className="text-sm text-gray-500">Preusmjeravanje...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Ako email confirm jest potreban
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <div className="text-5xl mb-4">✉️</div>
+          <h2 className="text-xl font-bold mb-2">Provjeri svoj e-mail</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Poslali smo link za potvrdu na{' '}
+            <strong className="text-black">{form.email}</strong>.
+            Provjeri inbox (i spam folder), pa se prijavi.
+          </p>
+          <Link to="/auth/login" className="btn btn-primary">
+            Idi na prijavu
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  /* ─── Korak 1: Odabir role ─── */
+  if (step === 1) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <Link to="/" className="text-sm text-gray-500 hover:text-black transition-colors">
+              ← Kvadrato
+            </Link>
+            <h1 className="text-2xl font-bold mt-6 mb-1">Kreiraj račun</h1>
+            <p className="text-sm text-gray-500">Kako ćeš koristiti Kvadrato?</p>
+          </div>
+
+          <div className="space-y-3">
+            {ROLES.map((role) => (
+              <button
+                key={role.id}
+                onClick={() => handleRoleSelect(role)}
+                className="w-full text-left border border-border rounded p-5 hover:border-black transition-all group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-black group-hover:text-white transition-all">
+                    <role.icon size={18} />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm mb-0.5">{role.label}</div>
+                    <div className="text-xs text-gray-500">{role.description}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <p className="text-sm text-center text-gray-500 mt-6">
+            Već imaš račun?{' '}
+            <Link to="/auth/login" className="text-black font-medium hover:underline">
+              Prijavi se
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  /* ─── Korak 2: Forma ─── */
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8">
+          <button
+            onClick={() => setStep(1)}
+            className="text-sm text-gray-500 hover:text-black transition-colors"
+          >
+            ← Natrag
+          </button>
+          <h1 className="text-2xl font-bold mt-6 mb-2">Kreiraj račun</h1>
+          <span className="badge badge-muted">{selectedRole?.label}</span>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Ime</label>
+              <input name="firstName" type="text" required value={form.firstName} onChange={handleChange} className="input" placeholder="Ana" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Prezime</label>
+              <input name="lastName" type="text" required value={form.lastName} onChange={handleChange} className="input" placeholder="Horvat" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">E-mail</label>
+            <input name="email" type="email" required autoComplete="email" value={form.email} onChange={handleChange} className="input" placeholder="ime@email.com" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Lozinka</label>
+            <div className="relative">
+              <input name="password" type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={form.password} onChange={handleChange} className="input pr-10" placeholder="Min. 6 znakova" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Ponovi lozinku</label>
+            <input name="confirmPassword" type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={form.confirmPassword} onChange={handleChange} className="input" placeholder="••••••••" />
+          </div>
+
+          {error && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-3">{error}</div>
+          )}
+
+          <button type="submit" disabled={loading} className="btn btn-primary w-full">
+            {loading ? (
+              <span className="flex items-center gap-2 justify-center">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Kreiranje računa…
+              </span>
+            ) : (
+              'Registriraj se'
+            )}
+          </button>
+        </form>
+
+        <p className="text-sm text-center text-gray-500 mt-6">
+          Već imaš račun?{' '}
+          <Link to="/auth/login" className="text-black font-medium hover:underline">
+            Prijavi se
+          </Link>
+        </p>
+      </div>
+    </div>
+  )
+}
