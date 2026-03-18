@@ -69,6 +69,14 @@ Real estate marketplace for the Croatian market built with **React 18 + Vite + T
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
+## Project Rules
+
+- Prefer small reusable React components
+- Use hooks instead of class components
+- All data fetching goes through services in `src/services`
+- Never access Supabase directly inside components
+- Use existing UI utility classes (`card`, `btn`, `badge`, `input`)
+
 ## Mentorship Preference
 The user is an informatics student learning real-world development.
 **After every response, always include a "Teachable Points" section** that:

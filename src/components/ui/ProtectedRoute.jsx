@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
 /**
@@ -34,7 +34,7 @@ export default function ProtectedRoute({ children, role }) {
         <div className="text-5xl mb-4">🔒</div>
         <h2 className="text-xl font-bold mb-2">Pristup ograničen</h2>
         <p className="text-gray-500 mb-6">Ova stranica je dostupna samo prodavačima.</p>
-        <a href="/" className="btn btn-secondary">← Početna</a>
+        <Link to="/" className="btn btn-secondary">← Početna</Link>
       </div>
     )
   }
@@ -45,7 +45,7 @@ export default function ProtectedRoute({ children, role }) {
         <div className="text-5xl mb-4">🔒</div>
         <h2 className="text-xl font-bold mb-2">Pristup ograničen</h2>
         <p className="text-gray-500 mb-6">Ova stranica je dostupna samo kupcima.</p>
-        <a href="/" className="btn btn-secondary">← Početna</a>
+        <Link to="/" className="btn btn-secondary">← Početna</Link>
       </div>
     )
   }

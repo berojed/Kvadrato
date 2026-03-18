@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { User, Shield, Eye, Bell, Sun, Moon, Monitor, ChevronRight, Mail, Phone, MapPin, Lock, KeyRound } from 'lucide-react'
+import { User, Shield, Eye, Bell, Sun, Moon, Monitor } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import { getUserProfile } from '@/services/sellers'
@@ -17,7 +17,6 @@ const THEME_OPTIONS = [
   { value: 'system', label: 'Sustav', Icon: Monitor },
 ]
 
-// ─── Setting row ───
 function SettingRow({ label, value, placeholder, action }) {
   return (
     <div className="flex items-center justify-between py-4 border-b border-border last:border-b-0">
@@ -40,53 +39,30 @@ function SettingRow({ label, value, placeholder, action }) {
   )
 }
 
-// ─── Personal data section ───
 function PersonalSection({ profile, userEmail }) {
   const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   const phone = profile?.phone_number?.[0]
-  const phoneDisplay = phone
-    ? `${phone.phone_country_code} ${phone.phone_number}`
-    : null
+  const phoneDisplay = phone ? `${phone.phone_country_code} ${phone.phone_number}` : null
 
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Osobni podaci</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Podaci koji se koriste za identifikaciju vašeg računa
+        Podaci koji se prikazuju na vašim oglasima i profilu
       </p>
       <div className="card p-0">
         <div className="px-5">
-          <SettingRow
-            label="Ime i prezime"
-            value={fullName}
-            placeholder="Nije dodano"
-            action="Uredi"
-          />
-          <SettingRow
-            label="E-mail adresa"
-            value={userEmail}
-            action="Uredi"
-          />
-          <SettingRow
-            label="Telefonski broj"
-            value={phoneDisplay}
-            placeholder="Nije dodano"
-            action={phoneDisplay ? 'Uredi' : 'Dodaj'}
-          />
-          <SettingRow
-            label="Adresa"
-            value={null}
-            placeholder="Nije dodano"
-            action="Dodaj"
-          />
+          <SettingRow label="Ime i prezime" value={fullName} placeholder="Nije dodano" action="Uredi" />
+          <SettingRow label="E-mail adresa" value={userEmail} action="Uredi" />
+          <SettingRow label="Telefonski broj" value={phoneDisplay} placeholder="Nije dodano" action={phoneDisplay ? 'Uredi' : 'Dodaj'} />
+          <SettingRow label="Adresa ureda" value={null} placeholder="Nije dodano" action="Dodaj" />
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Security section ───
-function SecuritySection({ userEmail }) {
+function SecuritySection() {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Prijava na račun i sigurnost</h2>
@@ -95,20 +71,9 @@ function SecuritySection({ userEmail }) {
       </p>
       <div className="card p-0">
         <div className="px-5">
-          <SettingRow
-            label="Lozinka"
-            value="••••••••"
-            action="Promijeni"
-          />
-          <SettingRow
-            label="Dvofaktorska autentifikacija"
-            value="Isključeno"
-            action="Postavi"
-          />
-          <SettingRow
-            label="Prijavljeni uređaji"
-            value="1 aktivan uređaj"
-          />
+          <SettingRow label="Lozinka" value="••••••••" action="Promijeni" />
+          <SettingRow label="Dvofaktorska autentifikacija" value="Isključeno" action="Postavi" />
+          <SettingRow label="Prijavljeni uređaji" value="1 aktivan uređaj" />
         </div>
       </div>
       <p className="text-xs text-gray-400 mt-3">
@@ -118,31 +83,19 @@ function SecuritySection({ userEmail }) {
   )
 }
 
-// ─── Privacy section ───
 function PrivacySection() {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Privatnost</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Kontrolirajte tko može vidjeti vaše podatke
+        Kontrolirajte vidljivost vaših podataka na oglasima
       </p>
       <div className="card p-0">
         <div className="px-5">
-          <SettingRow
-            label="Vidljivost profila"
-            value="Javni profil"
-            action="Uredi"
-          />
-          <SettingRow
-            label="Prikaži e-mail na oglasima"
-            value="Da"
-            action="Uredi"
-          />
-          <SettingRow
-            label="Prikaži telefonski broj na oglasima"
-            value="Ne"
-            action="Uredi"
-          />
+          <SettingRow label="Vidljivost profila" value="Javni profil" action="Uredi" />
+          <SettingRow label="Prikaži e-mail na oglasima" value="Da" action="Uredi" />
+          <SettingRow label="Prikaži telefonski broj na oglasima" value="Da" action="Uredi" />
+          <SettingRow label="Prikaži ime na oglasima" value="Da" action="Uredi" />
         </div>
       </div>
       <p className="text-xs text-gray-400 mt-3">
@@ -152,7 +105,6 @@ function PrivacySection() {
   )
 }
 
-// ─── Notifications section ───
 function NotificationsSection() {
   const { theme, setTheme } = useTheme()
 
@@ -163,33 +115,32 @@ function NotificationsSection() {
         Upravljajte obavijestima i izgledom aplikacije
       </p>
 
-      {/* E-mail notifications */}
       <div className="card p-5 mb-4">
         <h3 className="text-sm font-semibold mb-4">E-mail obavijesti</h3>
         <div className="space-y-3">
           <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Nove nekretnine po kriterijima</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Novi zahtjevi za razgledavanje</span>
             <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
               <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
             </div>
           </label>
           <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Status razgledavanja</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Nove poruke od kupaca</span>
             <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
               <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
             </div>
           </label>
           <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Promotivne ponude</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Tjedni izvještaj o oglasima</span>
             <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
               <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
             </div>
           </label>
         </div>
       </div>
+
       <p className="text-xs text-gray-400 mt-2">E-mail obavijesti dostupne uskoro.</p>
 
-      {/* Theme */}
       <div className="card p-5">
         <h3 className="text-sm font-semibold mb-4">Tema i izgled</h3>
         <div className="flex gap-2">
@@ -213,8 +164,7 @@ function NotificationsSection() {
   )
 }
 
-// ─── Main settings page ───
-export default function SettingsPage() {
+export default function SellerSettingsPage() {
   const { user } = useAuth()
   const [activeSection, setActiveSection] = useState('personal')
   const [profile, setProfile] = useState(null)
@@ -231,7 +181,7 @@ export default function SettingsPage() {
       case 'personal':
         return <PersonalSection profile={profile} userEmail={user?.email} />
       case 'security':
-        return <SecuritySection userEmail={user?.email} />
+        return <SecuritySection />
       case 'privacy':
         return <PrivacySection />
       case 'notifications':

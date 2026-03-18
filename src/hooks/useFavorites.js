@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext'
  * Hook za upravljanje omiljenima
  */
 export function useFavorites() {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, isBuyer } = useAuth()
   const [favorites, setFavorites] = useState([])
   const [favoriteIds, setFavoriteIds] = useState(new Set())
   const [loading, setLoading] = useState(false)
@@ -31,7 +31,7 @@ export function useFavorites() {
 
   const toggleFavorite = useCallback(
     async (propertyId) => {
-      if (!isAuthenticated || !user) return { error: 'Morate se prijaviti' }
+      if (!isAuthenticated || !user || !isBuyer) return { error: 'Nedostupno' }
 
       const currentlyFav = favoriteIds.has(propertyId)
 
@@ -71,7 +71,7 @@ export function useFavorites() {
 
       return result
     },
-    [user, isAuthenticated, favoriteIds, fetchFavorites]
+    [user, isAuthenticated, isBuyer, favoriteIds, fetchFavorites]
   )
 
   return {

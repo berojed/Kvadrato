@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -17,6 +17,9 @@ import RegisterPage from '@/pages/auth/RegisterPage'
 
 // Seller pages
 import SellerDashboardPage from '@/pages/seller/SellerDashboardPage'
+import SellerProfilePage from '@/pages/seller/SellerProfilePage'
+import SellerSettingsPage from '@/pages/seller/SellerSettingsPage'
+import SellerViewingsPage from '@/pages/seller/SellerViewingsPage'
 import AddPropertyPage from '@/pages/seller/AddPropertyPage'
 
 // 404
@@ -25,7 +28,7 @@ function NotFoundPage() {
     <div className="container py-24 text-center">
       <div className="text-5xl font-bold mb-4">404</div>
       <p className="text-gray-500 mb-6">Stranica nije pronađena.</p>
-      <a href="/" className="btn btn-secondary">← Početna</a>
+      <Link to="/" className="btn btn-secondary">← Početna</Link>
     </div>
   )
 }
@@ -100,7 +103,39 @@ export default function App() {
                 }
               />
               <Route
+                path="/seller/profile"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <SellerProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/settings"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <SellerSettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/viewings"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <SellerViewingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/seller/add"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <AddPropertyPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/edit/:id"
                 element={
                   <ProtectedRoute role="SELLER">
                     <AddPropertyPage />

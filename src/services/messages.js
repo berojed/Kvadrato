@@ -30,22 +30,42 @@ import { supabase } from '@/lib/supabase'
  * Šalje poruku prodavaču za određeni oglas
  */
 export async function sendMessage({ senderId, recipientId, listingId, content }) {
-  console.log('[messages] sendMessage:', { senderId, recipientId, listingId })
+  if (import.meta.env.DEV) console.log('[messages] sendMessage:', { senderId, listingId })
+
+  // When a listingId is provided, derive the canonical recipient from the
+  // listing's seller_id and reject if sender is the listing owner.
+  // This prevents self-messaging and avoids trusting the caller's recipientId.
+  let resolvedRecipientId = recipientId
+  if (listingId) {
+    const { data: listingRow, error: ownerErr } = await supabase
+      .from('listing')
+      .select('seller_id')
+      .eq('listing_id', listingId)
+      .single()
+
+    if (ownerErr) {
+      if (import.meta.env.DEV) console.error('[messages] sendMessage – provjera vlasnika neuspješna:', ownerErr.message)
+      return { data: null, error: ownerErr }
+    }
+    if (listingRow.seller_id === senderId) {
+      if (import.meta.env.DEV) console.warn('[messages] sendMessage – odbijeno: prodavač ne može slati poruke za vlastiti oglas')
+      return { data: null, error: { message: 'Prodavač ne može slati poruke za vlastiti oglas.' } }
+    }
+    resolvedRecipientId = listingRow.seller_id
+  }
 
   const { data, error } = await supabase
     .from('message')
     .insert({
       sender_id: senderId,
-      recipient_id: recipientId,
+      recipient_id: resolvedRecipientId,
       listing_id: listingId,
       content: content.trim(),
     })
     .select()
     .single()
 
-  if (error) {
-    console.error('[messages] sendMessage greška:', error.message)
-  }
+  if (error && import.meta.env.DEV) console.error('[messages] sendMessage greška:', error.message)
 
   return { data, error }
 }
@@ -54,9 +74,9 @@ export async function sendMessage({ senderId, recipientId, listingId, content })
  * Dohvaća sve poruke između dva korisnika za određeni oglas
  */
 export async function getMessages({ userId, otherUserId, listingId }) {
-  console.log('[messages] getMessages:', { userId, otherUserId, listingId })
+  if (import.meta.env.DEV) console.log('[messages] getMessages:', { userId, otherUserId, listingId })
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('message')
     .select(`
       *,
@@ -64,12 +84,18 @@ export async function getMessages({ userId, otherUserId, listingId }) {
       recipient:recipient_id(user_id, first_name, last_name)
     `)
     .eq('listing_id', listingId)
-    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-    .order('created_at', { ascending: true })
 
-  if (error) {
-    console.error('[messages] getMessages greška:', error.message)
+  if (otherUserId) {
+    query = query.or(
+      `and(sender_id.eq.${userId},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${userId})`
+    )
+  } else {
+    query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
   }
 
+  query = query.order('created_at', { ascending: true })
+  const { data, error } = await query
+
+  if (error && import.meta.env.DEV) console.error('[messages] getMessages greška:', error.message)
   return { data: data ?? [], error }
 }

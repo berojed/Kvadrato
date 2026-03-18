@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { getRoles } from '@/services/sellers'
 import { Eye, EyeOff, Home, Search } from 'lucide-react'
 
 const ROLES = [
@@ -25,6 +26,7 @@ export default function RegisterPage() {
   const { signUp } = useAuth()
 
   const [step, setStep] = useState(1)
+  const [roleMap, setRoleMap] = useState({})
   const [selectedRole, setSelectedRole] = useState(null)
   const [form, setForm] = useState({
     firstName: '',
@@ -38,6 +40,16 @@ export default function RegisterPage() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false)
+
+  useEffect(() => {
+    getRoles().then(({ data }) => {
+      if (data) {
+        const map = {}
+        data.forEach(r => { map[r.role_code] = r.role_id })
+        setRoleMap(map)
+      }
+    })
+  }, [])
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role)
@@ -63,20 +75,20 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
-    console.log('[RegisterPage] Pokušaj registracije:', form.email, '| Rola:', selectedRole.code)
+    if (import.meta.env.DEV) console.log('[RegisterPage] Pokušaj registracije:', form.email, '| Rola:', selectedRole.code)
 
     const { data, error: err } = await signUp({
       email: form.email,
       password: form.password,
       firstName: form.firstName,
       lastName: form.lastName,
-      roleId: selectedRole.id,
+      roleId: roleMap[selectedRole.code] ?? selectedRole.id,
     })
 
     setLoading(false)
 
     if (err) {
-      console.error('[RegisterPage] Registracija neuspješna:', err.message)
+      if (import.meta.env.DEV) console.error('[RegisterPage] Registracija neuspješna:', err.message)
       const msg =
         err.message.includes('already registered')
           ? 'Ovaj email je već registriran. Pokušaj se prijaviti.'
@@ -92,13 +104,11 @@ export default function RegisterPage() {
     // Uspješna registracija — samo provjeri sesiju
     if (data?.session) {
       setSuccess(true)
-      setNeedsEmailConfirm(false)
       setTimeout(() => navigate('/', { replace: true }), 1500)
     } else {
-      // Nema sesije ali user postoji — redirect na login
       setSuccess(true)
-      setNeedsEmailConfirm(false)
-      setTimeout(() => navigate('/', { replace: true }), 1500)
+      setNeedsEmailConfirm(true)
+      // no auto-redirect — let user read the confirm message
     }
   }
 

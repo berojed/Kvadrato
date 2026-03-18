@@ -1,10 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense, Component } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import {
   Bed, Bath, Maximize2, MapPin, Heart, Share2, ChevronLeft,
   ChevronRight, Phone, Mail, Globe, Calendar, Building,
-  Flame, Car, Layers, ArrowLeft, Map, MessageSquare
+  Flame, Car, Layers, ArrowLeft, Map, MessageSquare, Box
 } from 'lucide-react'
+
+const Property3DViewerModal = lazy(() => import('@/components/ui/Property3DViewerModal'))
+
+// Error boundary for the 3D viewer – prevents WebGL failures from crashing the page
+class Viewer3DErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(err) {
+    if (import.meta.env.DEV) console.warn('[3DViewer] Nedostupno:', err.message)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" onClick={this.props.onClose} />
+          <div className="relative bg-gray-950 rounded-xl p-10 text-center z-10">
+            <p className="text-white font-semibold mb-2">3D preglednik nije dostupan</p>
+            <p className="text-sm text-gray-400 mb-4">Vaš preglednik ne podržava WebGL.</p>
+            <button onClick={this.props.onClose} className="btn btn-secondary text-sm">Zatvori</button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 import { getListingById } from '@/services/properties'
 import { createVisitRequest } from '@/services/visits'
 import { sendMessage } from '@/services/messages'
@@ -22,7 +53,7 @@ const PROPERTY_TYPE_LABELS = {
 export default function PropertyDetailPage() {
   const { id } = useParams()
   const location = useLocation()
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, isBuyer, isSeller } = useAuth()
   const { isFavorite, toggleFavorite } = useFavorites()
 
   const isFavoritesContext = location.pathname.startsWith('/favorites')
@@ -44,9 +75,23 @@ export default function PropertyDetailPage() {
   const [msgLoading, setMsgLoading] = useState(false)
   const [msgSuccess, setMsgSuccess] = useState(false)
   const [msgError, setMsgError] = useState(null)
+  const [show3DViewer, setShow3DViewer] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
 
   useEffect(() => {
     loadListing()
+  }, [id])
+
+  useEffect(() => {
+    setImageIndex(0)
+    setSelectedDate(null)
+    setSelectedTime(null)
+    setVisitNotes('')
+    setVisitSuccess(false)
+    setVisitError(null)
+    setMessageText('')
+    setMsgSuccess(false)
+    setMsgError(null)
   }, [id])
 
   const loadListing = async () => {
@@ -98,9 +143,15 @@ export default function PropertyDetailPage() {
     : null
 
   const isFav = isFavorite(listing.listing_id)
+  // Use canonical FK column from the listing row as the primary ownership check;
+  // fall back to the joined relation only if seller_id is somehow absent.
+  const ownerId = listing.seller_id ?? listing.seller?.user_id
+  const isOwnListing = !!(user?.id && ownerId && user.id === ownerId)
+  const canBuyerAct = isBuyer && !isOwnListing
 
   const handleVisitSubmit = async (e) => {
     e.preventDefault()
+    if (!canBuyerAct) return          // defensive: should never reach here via UI
     if (!selectedDate || !selectedTime) return
 
     setVisitLoading(true)
@@ -115,6 +166,7 @@ export default function PropertyDetailPage() {
       buyerId: user.id,
       listingId: listing.listing_id,
       requestedDatetime: datetime.toISOString(),
+      notes: visitNotes || null,
     })
 
     setVisitLoading(false)
@@ -124,6 +176,7 @@ export default function PropertyDetailPage() {
 
   const handleMessageSubmit = async (e) => {
     e.preventDefault()
+    if (!canBuyerAct) return          // defensive: should never reach here via UI
     if (!messageText.trim() || !seller) return
 
     setMsgLoading(true)
@@ -212,6 +265,17 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
+          {/* 3D model button */}
+          {prop.model3dUrl && (
+            <button
+              onClick={() => setShow3DViewer(true)}
+              className="btn btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Box size={16} />
+              3D model nekretnine
+            </button>
+          )}
+
           {/* Title + price + actions */}
           <div>
             <div className="flex items-start justify-between gap-4 mb-2">
@@ -224,19 +288,30 @@ export default function PropertyDetailPage() {
                 <h1 className="text-2xl md:text-3xl font-bold">{prop.title}</h1>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                {isAuthenticated && (
+                {canBuyerAct && (
                   <button
                     onClick={() => toggleFavorite(listing.listing_id)}
+                    aria-label={isFav ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
                     className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isFav ? 'bg-accent border-accent text-white' : 'border-border text-gray-500 hover:border-accent hover:text-accent'}`}
                   >
                     <Heart size={15} fill={isFav ? 'currentColor' : 'none'} />
                   </button>
                 )}
                 <button
-                  onClick={() => navigator.share?.({ title: prop.title, url: window.location.href })}
+                  onClick={async () => {
+                    if (navigator.share) {
+                      navigator.share({ title: prop.title, url: window.location.href })
+                    } else {
+                      await navigator.clipboard?.writeText(window.location.href)
+                      setShareCopied(true)
+                      setTimeout(() => setShareCopied(false), 2000)
+                    }
+                  }}
+                  aria-label={shareCopied ? 'Kopirano!' : 'Dijeli'}
                   className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-gray-500 hover:text-black transition-colors"
+                  title={shareCopied ? 'Kopirano!' : 'Dijeli oglas'}
                 >
-                  <Share2 size={15} />
+                  {shareCopied ? <span className="text-xs">✓</span> : <Share2 size={15} />}
                 </button>
               </div>
             </div>
@@ -249,7 +324,7 @@ export default function PropertyDetailPage() {
             )}
 
             <div className="text-3xl font-bold text-black">
-              {formatPrice(listing.price_amount, listing.currency?.currency_code)}
+              {formatPrice(listing.price_amount, listing.currency)}
             </div>
           </div>
 
@@ -346,20 +421,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* 3D model */}
-          {prop.model3d?.[0]?.url && (
-            <div>
-              <h2 className="text-lg font-semibold mb-4">3D Pregled</h2>
-              <div className="border border-border rounded overflow-hidden aspect-video">
-                <iframe
-                  src={prop.model3d[0].url}
-                  title="3D model nekretnine"
-                  className="w-full h-full"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right: Seller card + Visit form */}
@@ -391,8 +452,8 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Visit request form */}
-          <div className="border border-border rounded p-5">
+          {/* Visit request form — hidden for sellers */}
+          {!isSeller && <div className="border border-border rounded p-5">
             <div className="flex items-center gap-2 mb-4">
               <Calendar size={16} className="text-gray-500" />
               <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
@@ -400,10 +461,18 @@ export default function PropertyDetailPage() {
               </h3>
             </div>
 
-            {!isAuthenticated ? (
+            {!canBuyerAct ? (
               <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-3">Prijavite se za zakazivanje pregleda</p>
-                <Link to="/auth/login" className="btn btn-primary text-sm">Prijava</Link>
+                {isOwnListing ? (
+                  <p className="text-sm text-gray-500">Vlasnik ste ovog oglasa.</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 mb-3">
+                      {isAuthenticated ? 'Dostupno samo kupcima' : 'Prijavite se za zakazivanje pregleda'}
+                    </p>
+                    {!isAuthenticated && <Link to="/auth/login" className="btn btn-primary text-sm">Prijava</Link>}
+                  </>
+                )}
               </div>
             ) : visitSuccess ? (
               <div className="text-center py-4">
@@ -464,9 +533,9 @@ export default function PropertyDetailPage() {
                 </button>
               </form>
             )}
-          </div>
-          {/* Messaging form */}
-          {seller && (
+          </div>}
+          {/* Messaging form — hidden for sellers */}
+          {!isSeller && seller && (
             <div className="border border-border rounded p-5">
               <div className="flex items-center gap-2 mb-4">
                 <MessageSquare size={16} className="text-gray-500" />
@@ -475,10 +544,18 @@ export default function PropertyDetailPage() {
                 </h3>
               </div>
 
-              {!isAuthenticated ? (
+              {!canBuyerAct ? (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 mb-3">Prijavite se za slanje poruke</p>
-                  <Link to="/auth/login" className="btn btn-primary text-sm">Prijava</Link>
+                  {isOwnListing ? (
+                    <p className="text-sm text-gray-500">Vlasnik ste ovog oglasa.</p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-500 mb-3">
+                        {isAuthenticated ? 'Dostupno samo kupcima' : 'Prijavite se za slanje poruke'}
+                      </p>
+                      {!isAuthenticated && <Link to="/auth/login" className="btn btn-primary text-sm">Prijava</Link>}
+                    </>
+                  )}
                 </div>
               ) : msgSuccess ? (
                 <div className="text-center py-6">
@@ -532,6 +609,19 @@ export default function PropertyDetailPage() {
           )}
         </div>
       </div>
+
+      {/* 3D Viewer Modal – lazy mounted only when open */}
+      {show3DViewer && prop.model3dUrl && (
+        <Viewer3DErrorBoundary onClose={() => setShow3DViewer(false)}>
+          <Suspense fallback={null}>
+            <Property3DViewerModal
+              url={prop.model3dUrl}
+              propertyId={prop.property_id}
+              onClose={() => setShow3DViewer(false)}
+            />
+          </Suspense>
+        </Viewer3DErrorBoundary>
+      )}
     </div>
   )
 }

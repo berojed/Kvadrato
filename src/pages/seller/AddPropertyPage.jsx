@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { createPropertyAndListing, getPropertyTypes, getLocations, getCurrencies } from '@/services/properties'
-import { ArrowLeft } from 'lucide-react'
+import { createPropertyAndListing, updatePropertyAndListing, getListingForEdit, getPropertyTypes, getLocations, getCurrencies, upsertPropertyModel, removePropertyModel } from '@/services/properties'
+import { ArrowLeft, Box } from 'lucide-react'
 
 const defaultForm = {
   // Adresa
@@ -26,14 +26,26 @@ const defaultForm = {
 export default function AddPropertyPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { id: editId } = useParams()
+  const isEdit = !!editId
+
   const [form, setForm] = useState(defaultForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Edit-mode internal IDs for update calls
+  const [editIds, setEditIds] = useState({ propertyId: null, addressId: null })
 
   const [propertyTypes, setPropertyTypes] = useState([])
   const [locations, setLocations] = useState([])
   const [currencies, setCurrencies] = useState([])
   const [lookupLoading, setLookupLoading] = useState(true)
+
+  // 3D model state
+  const [modelFile, setModelFile] = useState(null)          // File selected for upload
+  const [existingModel, setExistingModel] = useState(null)  // { url, model_id } from edit
+  const [modelUploading, setModelUploading] = useState(false)
+  const [modelRemoved, setModelRemoved] = useState(false)   // user requested removal
 
   useEffect(() => {
     loadLookups()
@@ -48,6 +60,40 @@ export default function AddPropertyPage() {
     setPropertyTypes(pt.data)
     setLocations(loc.data)
     setCurrencies(cur.data)
+
+    // In edit mode, load existing listing data
+    if (editId && user) {
+      const { data, error: editErr } = await getListingForEdit(editId, user.id)
+      if (editErr || !data) {
+        setError(editErr?.message ?? 'Oglas nije pronađen.')
+        setLookupLoading(false)
+        return
+      }
+      const prop = data.property ?? {}
+      const addr = prop.property_address?.[0] ?? prop.property_address ?? {}
+      const imgs = [...(prop.image ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const m3d = Array.isArray(prop.model3d) ? prop.model3d[0] : prop.model3d
+      if (m3d?.url) setExistingModel(m3d)
+
+      setEditIds({ propertyId: data.property_id, addressId: addr.address_id ?? null })
+      setForm({
+        streetAddress: addr.street_address ?? '',
+        title: prop.title ?? '',
+        description: prop.description ?? '',
+        bedrooms: prop.bedrooms ?? '',
+        bathrooms: prop.bathrooms ?? '',
+        areaSize: prop.area_size ?? '',
+        propertyTypeId: prop.property_type_id ?? pt.data[0]?.property_type_id ?? '',
+        locationId: prop.location_id ?? loc.data[0]?.location_id ?? '',
+        listingType: data.listing_type ?? 'SALE',
+        priceAmount: data.price_amount ?? '',
+        currencyId: data.currency_id ?? cur.data[0]?.currency_id ?? '',
+        imageUrlsRaw: imgs.map((i) => i.url).join(', '),
+      })
+      setLookupLoading(false)
+      return
+    }
+
     setForm((f) => ({
       ...f,
       propertyTypeId: pt.data[0]?.property_type_id ?? '',
@@ -62,10 +108,56 @@ export default function AddPropertyPage() {
     setForm((f) => ({ ...f, [name]: value }))
   }
 
+  const handleModelFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setModelFile(file)
+      setModelRemoved(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (isEdit) {
+      const { error: err } = await updatePropertyAndListing({
+        listingId: editId,
+        propertyId: editIds.propertyId,
+        addressId: editIds.addressId,
+        streetAddress: form.streetAddress,
+        title: form.title,
+        description: form.description,
+        bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+        areaSize: form.areaSize ? Number(form.areaSize) : null,
+        propertyTypeId: Number(form.propertyTypeId),
+        locationId: Number(form.locationId),
+        listingType: form.listingType,
+        priceAmount: form.priceAmount ? Number(form.priceAmount) : null,
+        currencyId: Number(form.currencyId),
+      })
+      if (err) {
+        setLoading(false)
+        setError(err.message)
+        return
+      }
+      // Upload new model if selected
+      if (modelFile && editIds.propertyId) {
+        setModelUploading(true)
+        const { error: modelErr } = await upsertPropertyModel(editIds.propertyId, modelFile)
+        setModelUploading(false)
+        if (modelErr && import.meta.env.DEV) {
+          console.error('[AddProperty] Model upload greška:', modelErr.message)
+        }
+      } else if (modelRemoved && !modelFile && editIds.propertyId) {
+        await removePropertyModel(editIds.propertyId)
+      }
+      setLoading(false)
+      navigate(`/properties/${editId}`)
+      return
+    }
 
     const imageUrls = form.imageUrlsRaw
       .split(',')
@@ -92,9 +184,20 @@ export default function AddPropertyPage() {
 
     if (err) {
       setError(err.message)
-    } else {
-      navigate(`/properties/${data.listing.listing_id}`)
+      return
     }
+
+    // Upload model if file was selected
+    if (modelFile && data.property?.property_id) {
+      setModelUploading(true)
+      const { error: modelErr } = await upsertPropertyModel(data.property.property_id, modelFile)
+      setModelUploading(false)
+      if (modelErr && import.meta.env.DEV) {
+        console.error('[AddProperty] Model upload greška:', modelErr.message)
+      }
+    }
+
+    navigate(`/properties/${data.listing.listing_id}`)
   }
 
   const Section = ({ title, children }) => (
@@ -129,8 +232,8 @@ export default function AddPropertyPage() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Dodaj oglas</h1>
-        <p className="text-sm text-gray-500">Ispuni podatke o nekretnini</p>
+        <h1 className="text-3xl font-bold mb-1">{isEdit ? 'Uredi oglas' : 'Dodaj oglas'}</h1>
+        <p className="text-sm text-gray-500">{isEdit ? 'Ažuriraj podatke o nekretnini' : 'Ispuni podatke o nekretnini'}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
@@ -233,21 +336,80 @@ export default function AddPropertyPage() {
         </Section>
 
         {/* Slike */}
-        <Section title="Slike">
-          <Field label="URL-ovi slika (odvojeni zarezom)">
-            <textarea
-              name="imageUrlsRaw"
-              rows={3}
-              value={form.imageUrlsRaw}
-              onChange={handleChange}
-              className="input resize-none"
-              placeholder="https://primjer.com/slika1.jpg, https://primjer.com/slika2.jpg"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Za upload slika koristi Supabase Storage i zalijepi dobivene URL-ove ovdje.
-            </p>
-          </Field>
-        </Section>
+        {isEdit ? (
+          <div className="border border-border rounded p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-3">Slike</h2>
+            <p className="text-xs text-gray-400">Uređivanje slika dostupno uskoro.</p>
+          </div>
+        ) : (
+          <Section title="Slike">
+            <Field label="URL-ovi slika (odvojeni zarezom)">
+              <textarea
+                name="imageUrlsRaw"
+                rows={3}
+                value={form.imageUrlsRaw}
+                onChange={handleChange}
+                className="input resize-none"
+                placeholder="https://primjer.com/slika1.jpg, https://primjer.com/slika2.jpg"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Za upload slika koristi Supabase Storage i zalijepi dobivene URL-ove ovdje.
+              </p>
+            </Field>
+          </Section>
+        )}
+
+        {/* 3D model */}
+        <div className="border border-border rounded p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Box size={16} className="text-gray-400" />
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">3D model</h2>
+          </div>
+
+          {isEdit && existingModel && !modelRemoved ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded border border-border text-sm">
+                <span className="text-gray-700 truncate mr-3">Trenutni model: model.glb</span>
+                <div className="flex gap-2 flex-shrink-0">
+                  <label className="btn btn-secondary cursor-pointer text-xs px-3 py-1.5 text-sm">
+                    Zamijeni
+                    <input
+                      type="file"
+                      accept=".glb,.gltf"
+                      className="hidden"
+                      onChange={handleModelFileChange}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setModelRemoved(true); setModelFile(null) }}
+                    className="btn btn-secondary text-xs px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    Ukloni
+                  </button>
+                </div>
+              </div>
+              {modelFile && (
+                <p className="text-xs text-gray-500">Novi model odabran: {modelFile.name}</p>
+              )}
+            </div>
+          ) : (
+            <Field label="GLB / GLTF datoteka (opcionalno)">
+              <input
+                type="file"
+                accept=".glb,.gltf"
+                onChange={handleModelFileChange}
+                className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Prihvaća se .glb i .gltf format. Preporučuje se Draco kompresija za manje datoteke.
+              </p>
+              {modelRemoved && (
+                <p className="text-xs text-amber-600 mt-1">Model će biti uklonjen pri spremanju.</p>
+              )}
+            </Field>
+          )}
+        </div>
 
         {error && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-4">
@@ -256,14 +418,19 @@ export default function AddPropertyPage() {
         )}
 
         <div className="flex gap-3">
-          <button type="submit" disabled={loading} className="btn btn-primary">
+          <button type="submit" disabled={loading || modelUploading} className="btn btn-primary">
             {loading ? (
               <span className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Objava…
+                {isEdit ? 'Spremanje…' : 'Objava…'}
+              </span>
+            ) : modelUploading ? (
+              <span className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Učitavanje modela…
               </span>
             ) : (
-              'Objavi oglas'
+              isEdit ? 'Spremi promjene' : 'Objavi oglas'
             )}
           </button>
           <Link to="/seller/dashboard" className="btn btn-secondary">

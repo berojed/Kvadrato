@@ -9,7 +9,7 @@ export default function Footer() {
             &copy; {year} Kvadrato. Sva prava zadržana.
           </p>
           <p className="text-xs text-gray-400">
-            Završni rad &mdash; Fakultet informatike i digitalnih tehnologija
+            Završni rad - Bernard Jedvaj &mdash; Fakultet informatike i digitalnih tehnologija
           </p>
         </div>
       </div>

@@ -19,7 +19,7 @@ import { useAuth } from '@/context/AuthContext'
  * }
  */
 export default function PropertyCard({ listing, className, linkPrefix = '/properties', onToggleFavorite, isFavorited = false }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isBuyer } = useAuth()
 
   const property = listing.property
   if (!property) return null
@@ -62,13 +62,10 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
         )}
 
         {/* Favorite button */}
-        {isAuthenticated && onToggleFavorite && (
+        {isBuyer && onToggleFavorite && (
           <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onToggleFavorite(listing.listing_id)
-            }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(listing.listing_id) }}
+            aria-label={isFavorited ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
             className={cn(
               'absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all',
               isFavorited
