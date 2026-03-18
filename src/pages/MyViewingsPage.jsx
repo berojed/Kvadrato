@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, MapPin, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, MapPin, AlertCircle, XCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { getVisitRequestsByBuyer } from '@/services/visits'
+import { getVisitRequestsByBuyer, cancelVisitRequest } from '@/services/visits'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +13,7 @@ const STATUS_LABELS = {
   REJECTED: { label: 'Odbijeno', className: 'bg-red-50 text-red-600' },
 }
 
-function ViewingCard({ visit }) {
+function ViewingCard({ visit, showCancel, onCancel, cancelling, showStatus = true }) {
   const listing = visit.listing
   const property = listing?.property
   const location = property?.location
@@ -56,9 +56,11 @@ function ViewingCard({ visit }) {
           >
             {property?.title ?? 'Nekretnina'}
           </Link>
-          <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', status.className)}>
-            {status.label}
-          </span>
+          {showStatus && (
+            <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', status.className)}>
+              {status.label}
+            </span>
+          )}
         </div>
 
         {location && (
@@ -68,15 +70,28 @@ function ViewingCard({ visit }) {
           </div>
         )}
 
-        <div className="flex items-center gap-3 text-xs text-gray-600">
-          <span className="flex items-center gap-1">
-            <Calendar size={11} />
-            {formattedDate}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock size={11} />
-            {formattedTime}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 text-xs text-gray-600">
+            <span className="flex items-center gap-1">
+              <Calendar size={11} />
+              {formattedDate}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock size={11} />
+              {formattedTime}
+            </span>
+          </div>
+
+          {showCancel && (
+            <button
+              onClick={() => onCancel(visit.request_id)}
+              disabled={cancelling}
+              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
+            >
+              <XCircle size={12} />
+              {cancelling ? 'Otkazujem...' : 'Otkaži'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -88,6 +103,7 @@ export default function MyViewingsPage() {
   const [visits, setVisits] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [cancellingId, setCancellingId] = useState(null)
 
   const buyerId = profile?.user_id ?? user?.id
 
@@ -108,6 +124,21 @@ export default function MyViewingsPage() {
 
     load()
   }, [buyerId])
+
+  const handleCancel = async (requestId) => {
+    setCancellingId(requestId)
+    const { error: err } = await cancelVisitRequest(requestId)
+    if (err) {
+      setError(err.message)
+    } else {
+      setVisits((prev) =>
+        prev.map((v) =>
+          v.request_id === requestId ? { ...v, status: 'CANCELLED' } : v
+        )
+      )
+    }
+    setCancellingId(null)
+  }
 
   const now = new Date()
 
@@ -169,7 +200,13 @@ export default function MyViewingsPage() {
         ) : (
           <div className="space-y-3">
             {upcoming.map((v) => (
-              <ViewingCard key={v.request_id} visit={v} />
+              <ViewingCard
+                key={v.request_id}
+                visit={v}
+                showCancel={true}
+                onCancel={handleCancel}
+                cancelling={cancellingId === v.request_id}
+              />
             ))}
           </div>
         )}
@@ -194,7 +231,7 @@ export default function MyViewingsPage() {
         ) : (
           <div className="space-y-3">
             {past.map((v) => (
-              <ViewingCard key={v.request_id} visit={v} />
+              <ViewingCard key={v.request_id} visit={v} showStatus={false} />
             ))}
           </div>
         )}

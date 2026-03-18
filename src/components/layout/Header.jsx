@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, X, Heart, User, LogOut, Home, Plus, LayoutDashboard, Calendar, Settings } from 'lucide-react'
+import { Menu, X, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -22,18 +22,21 @@ export default function Header() {
     }
   }
 
-  // Dinamički linkovi ovisno o roli
   const navLinks = [
-    { to: '/properties', label: 'Nekretnine' },
+    { to: '/properties', label: 'Nekretnine', authRequired: true },
     { to: '/favorites', label: 'Omiljene', buyerOnly: true },
     { to: '/my-viewings', label: 'Moja razgledavanja', buyerOnly: true },
     { to: '/seller/dashboard', label: 'Moji oglasi', sellerOnly: true },
+    { to: '/seller/viewings', label: 'Razgledavanja', sellerOnly: true },
   ]
 
   const displayName =
     profile?.first_name
       ? `${profile.first_name} ${profile.last_name || ''}`.trim()
       : user?.email?.split('@')[0]
+
+  const profileLink = isSeller ? '/seller/profile' : '/profile'
+  const settingsLink = isSeller ? '/seller/settings' : '/settings'
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-border">
@@ -50,6 +53,7 @@ export default function Header() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => {
+              if (link.authRequired && !isAuthenticated) return null
               if (link.buyerOnly && (!isAuthenticated || !isBuyer)) return null
               if (link.sellerOnly && (!isAuthenticated || !isSeller)) return null
               return (
@@ -72,98 +76,65 @@ export default function Header() {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
-              <>
-                {/* Samo seller vidi "Dodaj oglas" */}
-                {isSeller && (
-                  <Link to="/seller/add" className="btn btn-secondary btn-sm">
-                    <Plus size={14} />
-                    Dodaj oglas
-                  </Link>
-                )}
-
-                {/* User Menu */}
-                <div className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-black transition-colors"
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-black transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <User size={14} />
+                  </div>
+                  <span className="hidden lg:block max-w-[120px] truncate">
+                    {displayName}
+                  </span>
+                  <span
+                    className={cn(
+                      'hidden lg:inline-block text-[10px] font-medium px-1.5 py-0.5 rounded',
+                      isSeller
+                        ? 'bg-orange-50 text-orange-600'
+                        : 'bg-blue-50 text-blue-600'
+                    )}
                   >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      <User size={14} />
+                    {isSeller ? 'Prodavač' : 'Kupac'}
+                  </span>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded shadow-lg py-1 z-50">
+                    <div className="px-4 py-2 border-b border-border">
+                      <div className="text-sm font-medium truncate">{displayName}</div>
+                      <div className="text-xs text-gray-400 truncate">{user?.email}</div>
                     </div>
-                    <span className="hidden lg:block max-w-[120px] truncate">
-                      {displayName}
-                    </span>
-                    {/* Role badge */}
-                    <span
-                      className={cn(
-                        'hidden lg:inline-block text-[10px] font-medium px-1.5 py-0.5 rounded',
-                        isSeller
-                          ? 'bg-orange-50 text-orange-600'
-                          : 'bg-blue-50 text-blue-600'
-                      )}
+
+                    <Link
+                      to={profileLink}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
                     >
-                      {isSeller ? 'Prodavač' : 'Kupac'}
-                    </span>
-                  </button>
+                      <User size={14} />
+                      Profil
+                    </Link>
 
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded shadow-lg py-1 z-50">
-                      <div className="px-4 py-2 border-b border-border">
-                        <div className="text-sm font-medium truncate">{displayName}</div>
-                        <div className="text-xs text-gray-400 truncate">{user?.email}</div>
-                      </div>
+                    <Link
+                      to={settingsLink}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Settings size={14} />
+                      Postavke
+                    </Link>
 
-                      <Link
-                        to="/profile"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <User size={14} />
-                        Profil
-                      </Link>
-
-                      <Link
-                        to="/settings"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <Settings size={14} />
-                        Postavke
-                      </Link>
-
-                      {isSeller && (
-                        <>
-                          <Link
-                            to="/seller/dashboard"
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <LayoutDashboard size={14} />
-                            Dashboard
-                          </Link>
-                          <Link
-                            to="/seller/add"
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <Home size={14} />
-                            Dodaj nekretninu
-                          </Link>
-                        </>
-                      )}
-
-                      <div className="divider my-1" />
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <LogOut size={14} />
-                        Odjava
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
+                    <div className="divider my-1" />
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={14} />
+                      Odjava
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <Link to="/auth/login" className="btn btn-ghost btn-sm">
@@ -188,13 +159,15 @@ export default function Header() {
         {/* Mobile Menu */}
         {mobileOpen && (
           <div className="md:hidden border-t border-border py-4 space-y-1">
-            <Link
-              to="/properties"
-              className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
-              onClick={() => setMobileOpen(false)}
-            >
-              Nekretnine
-            </Link>
+            {isAuthenticated && (
+              <Link
+                to="/properties"
+                className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
+                onClick={() => setMobileOpen(false)}
+              >
+                Nekretnine
+              </Link>
+            )}
 
             {isAuthenticated && isBuyer && (
               <>
@@ -225,11 +198,11 @@ export default function Header() {
                   Moji oglasi
                 </Link>
                 <Link
-                  to="/seller/add"
+                  to="/seller/viewings"
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Dodaj nekretninu
+                  Razgledavanja
                 </Link>
               </>
             )}
@@ -237,7 +210,7 @@ export default function Header() {
             {isAuthenticated && (
               <>
                 <Link
-                  to="/profile"
+                  to={profileLink}
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
@@ -274,7 +247,6 @@ export default function Header() {
         )}
       </div>
 
-      {/* Overlay za zatvaranje user menua */}
       {userMenuOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
       )}

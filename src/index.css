@@ -28,6 +28,20 @@
     --radius: 4px;
   }
 
+  .dark {
+    --color-primary: #FFFFFF;
+    --color-accent: #FF7A00;
+    --color-background: #111111;
+    --color-foreground: #E5E5E5;
+    --color-muted: #1A1A1A;
+    --color-muted-foreground: #A0A0A0;
+    --color-border: #2A2A2A;
+    --color-gray-100: #1A1A1A;
+    --color-gray-300: #333333;
+    --color-gray-500: #808080;
+    --color-gray-700: #C0C0C0;
+  }
+
   html {
     scroll-behavior: smooth;
   }

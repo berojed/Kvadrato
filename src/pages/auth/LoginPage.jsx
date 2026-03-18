@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signIn } = useAuth()
+  const { signIn, signOut } = useAuth()
 
   const from = location.state?.from?.pathname ?? '/'
 
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [roleIntent, setRoleIntent] = useState('BUYER')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -21,13 +23,13 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    console.log('[LoginPage] Pokušaj prijave:', form.email)
+    if (import.meta.env.DEV) console.log('[LoginPage] Pokušaj prijave:', form.email)
 
-    const { data, error: err } = await signIn(form)
+    const { data, profile, error: err } = await signIn(form)
     setLoading(false)
 
     if (err) {
-      console.error('[LoginPage] Prijava neuspješna:', err.message)
+      if (import.meta.env.DEV) console.error('[LoginPage] Prijava neuspješna:', err.message)
 
       // Korisniku prilagođene poruke
       const msg =
@@ -40,9 +42,35 @@ export default function LoginPage() {
           : `Greška: ${err.message}`
 
       setError(msg)
-    } else {
-      console.log('[LoginPage] Prijava uspješna, redirect na:', from)
+      return
+    }
+
+    // ── Role validation ──────────────────────────────────────────────────────
+    // Compare the intent the user selected against the actual role stored in DB.
+    // If they mismatch, sign out immediately and show a clear error — the user
+    // needs to pick the correct role or use the right account.
+    const actualRole = profile?.role?.role_code
+    if (actualRole && actualRole !== roleIntent) {
+      if (import.meta.env.DEV) console.warn('[LoginPage] Role mismatch — intent:', roleIntent, '| actual:', actualRole)
+      await signOut()
+      setError(
+        roleIntent === 'SELLER'
+          ? 'Ovaj račun je registriran kao Kupac. Odaberi "Kupac" za prijavu ili koristi prodavački račun.'
+          : 'Ovaj račun je registriran kao Prodavač. Odaberi "Prodavač" za prijavu ili koristi kupački račun.'
+      )
+      return
+    }
+
+    // ── Role-aware redirect ──────────────────────────────────────────────────
+    // Honour an in-progress navigation (from) first; otherwise route to the
+    // role-appropriate home. Real permissions are always enforced by ProtectedRoute.
+    if (import.meta.env.DEV) console.log('[LoginPage] Prijava uspješna, intent:', roleIntent, '| actual:', actualRole)
+    if (from !== '/') {
       navigate(from, { replace: true })
+    } else if (roleIntent === 'SELLER') {
+      navigate('/seller/dashboard', { replace: true })
+    } else {
+      navigate('/', { replace: true })
     }
   }
 
@@ -58,6 +86,32 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Role intent selector — routing hint only, does not change permissions */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Prijavljujem se kao</label>
+            <div className="inline-flex w-full rounded-lg bg-gray-100 p-1">
+              {[
+                { value: 'BUYER', label: 'Kupac' },
+                { value: 'SELLER', label: 'Prodavač' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRoleIntent(opt.value)}
+                  className={cn(
+                    'flex-1 py-2 text-xs font-medium rounded-md transition-all',
+                    roleIntent === opt.value
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Ovo ne utječe na dozvole računa.</p>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">E-mail</label>
             <input

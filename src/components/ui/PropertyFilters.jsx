@@ -1,15 +1,12 @@
 import { Search, SlidersHorizontal, X } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const PROPERTY_TYPES = [
   { value: '', label: 'Svi tipovi' },
   { value: 'Stan', label: 'Stan' },
   { value: 'Kuća', label: 'Kuća' },
-  { value: 'Vila', label: 'Vila' },
   { value: 'Poslovni prostor', label: 'Poslovni prostor' },
-  { value: 'Zemljište', label: 'Zemljište' },
-  { value: 'Garaža', label: 'Garaža' },
 ]
 
 const SORT_OPTIONS = [
@@ -68,6 +65,10 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
   const [expanded, setExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState(filters.search ?? '')
   const debounceRef = useRef(null)
+
+  useEffect(() => {
+    if (!filters.search) setSearchValue('')
+  }, [filters.search])
 
   const handleSearchChange = (e) => {
     const value = e.target.value

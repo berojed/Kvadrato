@@ -13,8 +13,25 @@ import { supabase } from '@/lib/supabase'
 /**
  * Kreira zahtjev za posjet nekretnini
  */
-export async function createVisitRequest({ buyerId, listingId, requestedDatetime }) {
-  console.log('[visits] createVisitRequest:', { buyerId, listingId })
+export async function createVisitRequest({ buyerId, listingId, requestedDatetime, notes = null }) {
+  if (import.meta.env.DEV) console.log('[visits] createVisitRequest:', { buyerId, listingId })
+
+  // Service-level ownership guard: reject if the buyer is the listing's seller.
+  // This is a second line of defence behind the UI canBuyerAct gate.
+  const { data: listingRow, error: ownerErr } = await supabase
+    .from('listing')
+    .select('seller_id')
+    .eq('listing_id', listingId)
+    .single()
+
+  if (ownerErr) {
+    if (import.meta.env.DEV) console.error('[visits] createVisitRequest – provjera vlasnika neuspješna:', ownerErr.message)
+    return { data: null, error: ownerErr }
+  }
+  if (listingRow.seller_id === buyerId) {
+    if (import.meta.env.DEV) console.warn('[visits] createVisitRequest – odbijeno: prodavač ne može zakazati vlastiti oglas')
+    return { data: null, error: { message: 'Prodavač ne može zakazati pregled vlastitog oglasa.' } }
+  }
 
   const { data, error } = await supabase
     .from('visit_request')
@@ -23,13 +40,12 @@ export async function createVisitRequest({ buyerId, listingId, requestedDatetime
       listing_id: listingId,
       requested_datetime: requestedDatetime,
       status: 'PENDING',
+      notes,
     })
     .select()
     .single()
 
-  if (error) {
-    console.error('[visits] createVisitRequest greška:', error.message)
-  }
+  if (error && import.meta.env.DEV) console.error('[visits] createVisitRequest greška:', error.message)
 
   return { data, error }
 }
@@ -38,7 +54,7 @@ export async function createVisitRequest({ buyerId, listingId, requestedDatetime
  * Dohvaća zahtjeve za posjet za kupca
  */
 export async function getVisitRequestsByBuyer(buyerId) {
-  console.log('[visits] getVisitRequestsByBuyer:', buyerId)
+  if (import.meta.env.DEV) console.log('[visits] getVisitRequestsByBuyer:', buyerId)
 
   const { data, error } = await supabase
     .from('visit_request')
@@ -56,7 +72,7 @@ export async function getVisitRequestsByBuyer(buyerId) {
     .eq('buyer_id', buyerId)
     .order('requested_datetime', { ascending: true })
 
-  if (error) {
+  if (error && import.meta.env.DEV) {
     console.error('[visits] getVisitRequestsByBuyer greška:', error.message)
   }
 
@@ -67,7 +83,7 @@ export async function getVisitRequestsByBuyer(buyerId) {
  * Dohvaća zahtjeve za posjet za prodavačeve oglase
  */
 export async function getVisitRequestsBySeller(sellerId) {
-  console.log('[visits] getVisitRequestsBySeller:', sellerId)
+  if (import.meta.env.DEV) console.log('[visits] getVisitRequestsBySeller:', sellerId)
 
   const { data, error } = await supabase
     .from('visit_request')
@@ -76,13 +92,17 @@ export async function getVisitRequestsBySeller(sellerId) {
       buyer:user!visit_request_buyer_id_fkey(first_name, last_name, email),
       listing!inner(
         listing_id, listing_type,
-        property(title, location(city))
+        property(
+          title,
+          location(city, state_region),
+          image(url, is_primary, sort_order)
+        )
       )
     `)
     .eq('listing.seller_id', sellerId)
     .order('requested_datetime', { ascending: false })
 
-  if (error) {
+  if (error && import.meta.env.DEV) {
     console.error('[visits] getVisitRequestsBySeller greška:', error.message)
   }
 
@@ -90,10 +110,17 @@ export async function getVisitRequestsBySeller(sellerId) {
 }
 
 /**
+ * Otkazuje zahtjev za posjet (buyer-side)
+ */
+export async function cancelVisitRequest(requestId) {
+  return updateVisitStatus(requestId, 'CANCELLED')
+}
+
+/**
  * Ažurira status zahtjeva za posjet
  */
 export async function updateVisitStatus(requestId, status) {
-  console.log('[visits] updateVisitStatus:', requestId, '→', status)
+  if (import.meta.env.DEV) console.log('[visits] updateVisitStatus:', requestId, '→', status)
 
   const { data, error } = await supabase
     .from('visit_request')
@@ -102,7 +129,7 @@ export async function updateVisitStatus(requestId, status) {
     .select()
     .single()
 
-  if (error) {
+  if (error && import.meta.env.DEV) {
     console.error('[visits] updateVisitStatus greška:', error.message)
   }
 

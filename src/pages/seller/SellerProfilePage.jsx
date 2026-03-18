@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { getUserProfile, updateUserProfile } from '@/services/sellers'
-import { User, Save, Settings, ChevronRight } from 'lucide-react'
+import { getUserProfile, updateUserProfile, getSellerStats } from '@/services/sellers'
+import { User, Save, Settings, ChevronRight, BarChart2 } from 'lucide-react'
 
-export default function ProfilePage() {
+export default function SellerProfilePage() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -20,22 +21,26 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    loadProfile()
+    loadData()
   }, [user])
 
-  const loadProfile = async () => {
+  const loadData = async () => {
     setLoading(true)
-    const { data } = await getUserProfile(user.id)
-    if (data) {
-      setProfile(data)
+    const [profileRes, statsRes] = await Promise.all([
+      getUserProfile(user.id),
+      getSellerStats(user.id),
+    ])
+    if (profileRes.data) {
+      setProfile(profileRes.data)
       setForm({
-        first_name: data.first_name ?? '',
-        last_name: data.last_name ?? '',
-        email: data.email ?? user.email ?? '',
+        first_name: profileRes.data.first_name ?? '',
+        last_name: profileRes.data.last_name ?? '',
+        email: profileRes.data.email ?? user.email ?? '',
       })
     } else {
       setForm((f) => ({ ...f, email: user.email ?? '' }))
     }
+    if (statsRes.stats) setStats(statsRes.stats)
     setLoading(false)
   }
 
@@ -66,7 +71,6 @@ export default function ProfilePage() {
   }
 
   const fullName = [form.first_name, form.last_name].filter(Boolean).join(' ')
-  const roleName = profile?.role?.role_code === 'SELLER' ? 'Prodavač' : 'Kupac'
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString('hr-HR', { year: 'numeric', month: 'long' })
     : null
@@ -82,14 +86,14 @@ export default function ProfilePage() {
   return (
     <div className="container py-10 max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Profil</h1>
-        <p className="text-sm text-gray-500">Vaši osobni podaci i račun</p>
+        <h1 className="text-3xl font-bold mb-1">Profil prodavača</h1>
+        <p className="text-sm text-gray-500">Vaši osobni podaci i pregled aktivnosti</p>
       </div>
 
       {/* Identity block */}
       <div className="card p-6 mb-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
+          <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 flex-shrink-0">
             {form.first_name ? (
               <span className="text-xl font-semibold">{form.first_name.charAt(0)}</span>
             ) : (
@@ -100,7 +104,7 @@ export default function ProfilePage() {
             <div className="font-semibold text-lg">{fullName || 'Korisnik'}</div>
             <div className="text-sm text-gray-500">{user?.email}</div>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-              <span>{roleName}</span>
+              <span className="text-orange-600 font-medium">Prodavač</span>
               {memberSince && (
                 <>
                   <span>·</span>
@@ -111,6 +115,24 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Seller stats summary */}
+      {stats && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="card p-4 text-center">
+            <div className="text-xl font-bold">{stats.active}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Aktivnih</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-xl font-bold">{stats.sold}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Prodano</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-xl font-bold">{stats.totalListings}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Ukupno</div>
+          </div>
+        </div>
+      )}
 
       {/* Editable personal info form */}
       <div className="card p-6 mb-6">
@@ -164,7 +186,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Settings entry point */}
-      <Link to="/settings" className="card p-5 flex items-center gap-4 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group">
+      <Link to="/seller/settings" className="card p-5 flex items-center gap-4 hover:border-gray-400 dark:hover:border-gray-500 transition-colors group">
         <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
           <Settings size={18} className="text-gray-600" />
         </div>
