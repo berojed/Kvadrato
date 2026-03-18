@@ -1,14 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { getLocationSuggestions } from '@/lib/locationAutocomplete'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ArrowRight, Home, Building2, Landmark, Warehouse, Plus, BarChart3, Eye, MessageSquare, Calendar } from 'lucide-react'
+import { Search, ArrowRight, Home, Building2, Landmark, MapPin, Plus, BarChart3, Eye, MessageSquare, Calendar } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/context/AuthContext'
 
 const CATEGORIES = [
-  { type: 'apartment', label: 'Stanovi', icon: Building2, description: 'Moderni gradski stanovi' },
-  { type: 'house', label: 'Kuće', icon: Home, description: 'Obiteljske kuće i vile' },
-  { type: 'commercial', label: 'Poslovni prostori', icon: Landmark, description: 'Uredi i lokali' },
-  { type: 'land', label: 'Zemljišta', icon: Warehouse, description: 'Građevinsko i poljoprivredno' },
+  { type: 'Stan',             label: 'Stanovi',           icon: Building2, description: 'Moderni gradski stanovi' },
+  { type: 'Kuća',             label: 'Kuće',              icon: Home,      description: 'Obiteljske kuće i vile' },
+  { type: 'Poslovni prostor', label: 'Poslovni prostori', icon: Landmark,  description: 'Uredi i lokali' },
 ]
 
 const STATS = [
@@ -25,11 +25,49 @@ const STATS = [
 function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const debounceRef = useRef(null)
+  const containerRef = useRef(null)
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    clearTimeout(debounceRef.current)
+    if (value.trim().length >= 2) {
+      debounceRef.current = setTimeout(async () => {
+        const results = await getLocationSuggestions(value)
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+      }, 300)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionClick = (suggestion) => {
+    setSearchQuery(suggestion.label)
+    setShowSuggestions(false)
+    navigate(`/properties?search=${encodeURIComponent(suggestion.label)}`)
+  }
 
   const handleSearch = (e) => {
     e.preventDefault()
+    setShowSuggestions(false)
     navigate(`/properties${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`)
   }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
 
   return (
     <section className="relative overflow-hidden bg-black text-white">
@@ -76,15 +114,35 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
               </p>
 
               <form onSubmit={handleSearch} className="flex gap-2 max-w-lg">
-                <div className="flex-1 relative">
-                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="flex-1 relative" ref={containerRef}>
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
                   <input
                     type="text"
                     placeholder="Grad, adresa, kvart…"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
+                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                    autoComplete="off"
                     className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded px-4 py-3 pl-10 outline-none focus:border-white/50 transition-colors text-sm"
                   />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+                      {suggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s) }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                        >
+                          <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                          <span className="flex-1 truncate">{s.label}</span>
+                          {s.sublabel && (
+                            <span className="text-xs text-gray-400 flex-shrink-0">{s.sublabel}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <motion.button
                   type="submit"
@@ -121,8 +179,8 @@ function SellerQuickActions() {
   const actions = [
     { to: '/seller/add', icon: Plus, label: 'Dodaj nekretninu', desc: 'Kreiraj novi oglas s fotografijama i 3D modelom' },
     { to: '/seller/dashboard', icon: BarChart3, label: 'Pregled statistike', desc: 'Prati preglede, klikove i interes kupaca' },
-    { to: '/seller/dashboard', icon: MessageSquare, label: 'Upiti kupaca', desc: 'Odgovori na poruke zainteresiranih kupaca' },
-    { to: '/seller/dashboard', icon: Calendar, label: 'Razgledanja', desc: 'Upravljaj zahtjevima za razgledanje' },
+    { to: null, icon: MessageSquare, label: 'Upiti kupaca', desc: 'Uskoro dostupno' },
+    { to: '/seller/viewings', icon: Calendar, label: 'Razgledanja', desc: 'Upravljaj zahtjevima za razgledanje' },
   ]
 
   return (
@@ -144,17 +202,28 @@ function SellerQuickActions() {
               transition={{ delay: i * 0.08, duration: 0.4 }}
               viewport={{ once: true }}
             >
-              <Link
-                to={action.to}
-                className="group block border border-border rounded p-6 hover:border-black transition-all hover:shadow-sm"
-              >
-                <action.icon size={24} className="mb-4 text-gray-400 group-hover:text-accent transition-colors" />
-                <h3 className="font-semibold text-black mb-1">{action.label}</h3>
-                <p className="text-xs text-gray-500">{action.desc}</p>
-                <div className="mt-4 flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-black transition-colors">
-                  Otvori <ArrowRight size={12} />
+              {action.to ? (
+                <Link
+                  to={action.to}
+                  className="group block border border-border rounded p-6 hover:border-black transition-all hover:shadow-sm"
+                >
+                  <action.icon size={24} className="mb-4 text-gray-400 group-hover:text-accent transition-colors" />
+                  <h3 className="font-semibold text-black mb-1">{action.label}</h3>
+                  <p className="text-xs text-gray-500">{action.desc}</p>
+                  <div className="mt-4 flex items-center gap-1 text-xs font-medium text-gray-400 group-hover:text-black transition-colors">
+                    Otvori <ArrowRight size={12} />
+                  </div>
+                </Link>
+              ) : (
+                <div className="block border border-border rounded p-6 opacity-50 cursor-not-allowed">
+                  <action.icon size={24} className="mb-4 text-gray-400" />
+                  <h3 className="font-semibold text-black mb-1">{action.label}</h3>
+                  <p className="text-xs text-gray-500">{action.desc}</p>
+                  <div className="mt-4 flex items-center gap-1 text-xs font-medium text-gray-400">
+                    Otvori <ArrowRight size={12} />
+                  </div>
                 </div>
-              </Link>
+              )}
             </motion.div>
           ))}
         </div>
