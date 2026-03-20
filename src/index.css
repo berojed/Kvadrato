@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,14 +18,24 @@
     --color-foreground: #333333;
     --color-muted: #F5F5F5;
     --color-muted-foreground: #808080;
-    --color-border: #D3D3D3;
+    --color-border: #E5E7EB;
     --color-gray-100: #F5F5F5;
-    --color-gray-300: #D3D3D3;
-    --color-gray-500: #808080;
-    --color-gray-700: #4D4D4D;
+    --color-gray-300: #D1D5DB;
+    --color-gray-500: #6B7280;
+    --color-gray-700: #374151;
 
     --spacing-base: 8px;
-    --radius: 4px;
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.1);
   }
 
   .dark {
@@ -47,20 +57,21 @@
   }
 
   body {
-    font-family: 'Work Sans', 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Raleway', 'Helvetica Neue', Arial, sans-serif;
     color: var(--color-foreground);
     background-color: var(--color-background);
     font-size: 1rem;
-    line-height: 1.5;
-    letter-spacing: 0.02em;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Raleway', sans-serif;
     color: var(--color-primary);
     line-height: 1.2;
+    font-weight: 600;
   }
 
   a {
@@ -96,14 +107,14 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 500;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
     font-size: 0.875rem;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     border-radius: var(--radius);
     padding: 12px 24px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     border: none;
     outline: none;
@@ -117,10 +128,12 @@
   .btn-primary {
     background-color: var(--color-accent);
     color: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(255, 122, 0, 0.2);
   }
 
   .btn-primary:hover {
-    background-color: #e06900;
+    background-color: #e06d00;
+    box-shadow: 0 4px 12px rgba(255, 122, 0, 0.25);
     transform: translateY(-1px);
   }
 
@@ -131,7 +144,7 @@
   }
 
   .btn-secondary:hover {
-    border-color: var(--color-primary);
+    border-color: var(--color-gray-500);
     background-color: var(--color-gray-100);
   }
 
@@ -145,74 +158,80 @@
   }
 
   .btn-sm {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     padding: 8px 16px;
+    border-radius: var(--radius-sm);
   }
 
   .btn-lg {
     font-size: 1rem;
     padding: 16px 32px;
+    border-radius: var(--radius-lg);
   }
 
   /* Input */
   .input {
     width: 100%;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Raleway', sans-serif;
     font-size: 0.875rem;
     color: var(--color-foreground);
     background-color: var(--color-background);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
     outline: none;
-    transition: border-color 0.2s ease;
-    letter-spacing: 0.02em;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    letter-spacing: 0.01em;
   }
 
   .input:focus {
-    border-color: var(--color-primary);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.08);
   }
 
   .input::placeholder {
     color: var(--color-gray-500);
+    font-weight: 400;
   }
 
   /* Select */
   .select {
     width: 100%;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Raleway', sans-serif;
     font-size: 0.875rem;
     color: var(--color-foreground);
     background-color: var(--color-background);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
     outline: none;
     cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 36px;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .select:focus {
-    border-color: var(--color-primary);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.08);
   }
 
   /* Card */
   .card {
     background-color: var(--color-background);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
   }
 
   .card:hover {
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
   }
 
   /* Badge */
@@ -220,11 +239,10 @@
     display: inline-flex;
     align-items: center;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     padding: 4px 10px;
-    border-radius: 2px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
   }
 
   .badge-primary {
@@ -259,7 +277,7 @@
     width: 24px;
     height: 24px;
     border: 2px solid var(--color-gray-300);
-    border-top-color: var(--color-primary);
+    border-top-color: var(--color-accent);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
@@ -276,7 +294,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-gray-100);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {

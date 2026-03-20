@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "Kvadrato Dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--port", "5173"],
       "port": 5173
     },
     {
       "name": "Kvadrato Preview",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview"],
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "preview", "--port", "4173"],
       "port": 4173
     }
   ]

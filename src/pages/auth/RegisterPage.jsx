@@ -119,7 +119,6 @@ export default function RegisterPage() {
       return (
         <div className="min-h-[80vh] flex items-center justify-center p-4">
           <div className="text-center max-w-sm">
-            <div className="text-5xl mb-4">✅</div>
             <h2 className="text-xl font-bold mb-2">Račun kreiran!</h2>
             <p className="text-sm text-gray-500">Preusmjeravanje...</p>
           </div>
@@ -131,7 +130,6 @@ export default function RegisterPage() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
-          <div className="text-5xl mb-4">✉️</div>
           <h2 className="text-xl font-bold mb-2">Provjeri svoj e-mail</h2>
           <p className="text-sm text-gray-500 mb-6">
             Poslali smo link za potvrdu na{' '}

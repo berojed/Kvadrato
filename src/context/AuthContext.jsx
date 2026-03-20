@@ -160,6 +160,31 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  /**
+   * Ažurira email adresu putem Supabase Auth (ne putem public.user).
+   * Supabase šalje confirmation email na novu adresu — dok se ne potvrdi,
+   * stari email ostaje aktivan.
+   */
+  const updateAuthEmail = async (newEmail) => {
+    if (import.meta.env.DEV) console.log('[Auth] updateAuthEmail:', newEmail)
+    const { data, error } = await supabase.auth.updateUser({ email: newEmail })
+    if (error) {
+      if (import.meta.env.DEV) console.error('[Auth] updateAuthEmail greška:', error.message)
+    }
+    return { data, error }
+  }
+
+  /**
+   * Ažurira lozinku putem Supabase Auth.
+   * Ne zahtijeva staru lozinku ako korisnik ima aktivnu sesiju.
+   */
+  const updateAuthPassword = async (newPassword) => {
+    if (import.meta.env.DEV) console.log('[Auth] updateAuthPassword')
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error && import.meta.env.DEV) console.error('[Auth] updateAuthPassword greška:', error.message)
+    return { data, error }
+  }
+
   /* ─── Izvedene vrijednosti ─── */
   const isSeller = profile?.role?.role_code === 'SELLER'
   const isBuyer = profile?.role?.role_code === 'BUYER'
@@ -172,6 +197,8 @@ export function AuthProvider({ children }) {
     signUp,
     signIn,
     signOut,
+    updateAuthEmail,
+    updateAuthPassword,
     isAuthenticated: !!user,
     isSeller,
     isBuyer,

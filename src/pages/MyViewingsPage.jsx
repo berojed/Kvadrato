@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Clock, MapPin, AlertCircle, XCircle } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { getVisitRequestsByBuyer, cancelVisitRequest } from '@/services/visits'
 import { formatDate } from '@/lib/utils'
@@ -14,6 +14,7 @@ const STATUS_LABELS = {
 }
 
 function ViewingCard({ visit, showCancel, onCancel, cancelling, showStatus = true }) {
+  const navigate = useNavigate()
   const listing = visit.listing
   const property = listing?.property
   const location = property?.location
@@ -30,8 +31,17 @@ function ViewingCard({ visit, showCancel, onCancel, cancelling, showStatus = tru
     ? dateTime.toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit' })
     : '—'
 
+  const handleCardClick = () => {
+    if (listing?.listing_id) {
+      navigate(`/properties/${listing.listing_id}`)
+    }
+  }
+
   return (
-    <div className="card p-4 flex gap-4">
+    <div
+      onClick={handleCardClick}
+      className="card p-4 flex gap-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+    >
       {/* Thumbnail */}
       <div className="w-20 h-20 rounded overflow-hidden bg-gray-100 flex-shrink-0">
         {primaryImage?.url ? (
@@ -50,12 +60,9 @@ function ViewingCard({ visit, showCancel, onCancel, cancelling, showStatus = tru
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <Link
-            to={`/properties/${listing?.listing_id}`}
-            className="text-sm font-semibold hover:underline truncate"
-          >
+          <span className="text-sm font-semibold truncate">
             {property?.title ?? 'Nekretnina'}
-          </Link>
+          </span>
           {showStatus && (
             <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', status.className)}>
               {status.label}
@@ -84,7 +91,7 @@ function ViewingCard({ visit, showCancel, onCancel, cancelling, showStatus = tru
 
           {showCancel && (
             <button
-              onClick={() => onCancel(visit.request_id)}
+              onClick={(e) => { e.stopPropagation(); onCancel(visit.request_id) }}
               disabled={cancelling}
               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
             >

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Edit2, Trash2, Home, Heart, Calendar, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
+import { Plus, Edit2, Trash2, Home, MessageCircle, Calendar, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getListingsBySeller, deleteListing } from '@/services/properties'
 import { getVisitRequestsBySeller } from '@/services/visits'
-import { getSellerFavoritesCount } from '@/services/sellers'
+import { getSellerContactsCount } from '@/services/sellers'
 import { formatPrice } from '@/lib/utils'
 
 const PER_PAGE = 6
@@ -19,7 +19,7 @@ export default function SellerDashboardPage() {
   const [page, setPage] = useState(1)
 
   // Metrics
-  const [metrics, setMetrics] = useState({ active: 0, upcomingViewings: 0, favorites: 0 })
+  const [metrics, setMetrics] = useState({ active: 0, upcomingViewings: 0, contacts: 0 })
 
   useEffect(() => {
     if (!user) return
@@ -28,10 +28,10 @@ export default function SellerDashboardPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const [listingsRes, visitsRes, favsRes] = await Promise.all([
+    const [listingsRes, visitsRes, contactsRes] = await Promise.all([
       getListingsBySeller(user.id),
       getVisitRequestsBySeller(user.id),
-      getSellerFavoritesCount(user.id),
+      getSellerContactsCount(user.id),
     ])
 
     if (listingsRes.error) {
@@ -58,7 +58,7 @@ export default function SellerDashboardPage() {
     setMetrics({
       active: activeCount,
       upcomingViewings,
-      favorites: favsRes.count ?? 0,
+      contacts: contactsRes.count ?? 0,
     })
 
     setLoading(false)
@@ -122,12 +122,12 @@ export default function SellerDashboardPage() {
           </div>
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
-                <Heart size={16} className="text-red-500" />
+              <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center">
+                <MessageCircle size={16} className="text-purple-600" />
               </div>
-              <span className="text-xs font-medium text-gray-500">Dodano u omiljene</span>
+              <span className="text-xs font-medium text-gray-500">Ostvareno kontakata</span>
             </div>
-            <div className="text-2xl font-bold">{loading ? '—' : metrics.favorites}</div>
+            <div className="text-2xl font-bold">{loading ? '—' : metrics.contacts}</div>
           </div>
         </div>
 
@@ -165,7 +165,7 @@ export default function SellerDashboardPage() {
                 return (
                   <div
                     key={listing.listing_id}
-                    onClick={() => navigate(`/properties/${listing.listing_id}`)}
+                    onClick={() => navigate(`/my_properties/${listing.listing_id}`)}
                     className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4 hover:shadow-md transition-shadow cursor-pointer"
                   >
                     {/* Thumbnail */}
@@ -187,7 +187,7 @@ export default function SellerDashboardPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2 mb-1">
                         <Link
-                          to={`/properties/${listing.listing_id}`}
+                          to={`/my_properties/${listing.listing_id}`}
                           className="text-sm font-semibold hover:underline truncate"
                         >
                           {prop.title ?? 'Nekretnina'}

@@ -75,6 +75,10 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
           <span>{buyerName}</span>
         </div>
 
+        {visit.notes && (
+          <p className="text-xs text-gray-500 italic mb-1.5 line-clamp-2">„{visit.notes}"</p>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 text-xs text-gray-600">
             <span className="flex items-center gap-1">

@@ -1,96 +1,66 @@
 /**
- * Per-property 3D viewer configuration.
- * Keyed by property_id. Each entry defines camera presets and room navigation.
+ * Per-property 3D viewer configuration — COMPATIBILITY FALLBACK ONLY.
  *
- * Room definitions are model-driven:
- *  - `nodeNames`: GLTF node/group names to search for (first match wins).
- *    Leave empty [] when the model has no meaningful room-level nodes.
- *  - `volume`: fallback normalized 3D bounding volume
- *    [xMin, yMin, zMin, xMax, yMax, zMax] in 0–1 range relative to the
- *    model bounding box (used when no node match is found).
- *    y=0 → model bottom, y=1 → model top.
- *    Ground-floor rooms: yMin ≈ 0.02, yMax ≈ 0.48
- *    Upper-floor rooms:  yMin ≈ 0.52, yMax ≈ 0.93
- *  - `facing`: optional [dx, dz] unit vector in the XZ plane.
- *    Determines which face the camera is pulled toward
- *    (camera is placed 55 % of the half-span from center, looking inward).
- *    If omitted, the longer horizontal axis is used.
- *  - `pullFactor`: optional [0..0.9] factor controlling how far camera is
- *    pulled from room center toward the facing side in volume mode.
- *    Lower values keep camera more centered (e.g. 0.25–0.35).
- *  - `eyeHeight`: optional fraction of room height for camera Y (default 0.38,
- *    roughly 1.4 m in a 3.6 m room).
+ * The standardized viewer path (Property3DViewerModal) auto-centers, normalizes
+ * scale, derives overview camera from bounding box, and attempts room detection
+ * from GLTF node names. This file only applies when a property has a specific
+ * config entry — new models should NOT need one.
  *
- * Node-matched rooms (source = 'node') still support the legacy
- * `height` / `distance` / `yawBias` hints if needed.
+ * When `getProperty3DConfig(propertyId)` returns null, the viewer runs in
+ * fully standardized mode. When it returns a config, the viewer uses it as-is
+ * (legacy compatibility path) with no scale normalization.
  *
- * Overview camera is computed from scene bounds or optionally overridden.
+ * ─── Room definition contract ───
+ *  - `nodeNames`: GLTF node/group names to search for (first match wins)
+ *  - `volume`: normalised [xMin, yMin, zMin, xMax, yMax, zMax] bounding volume
+ *    in 0–1 range relative to model bounding box (fallback when no node matches)
+ *  - `interiorY`: optional [yMin, yMax] (0–1) overriding usable floor-to-ceiling Y
+ *  - `facing`: optional [dx, dz] pull direction
+ *  - `pullFactor`: 0..0.9 camera pull toward facing side (default 0.55)
+ *  - `eyeHeight`: fraction of interior height for camera Y (default 0.38)
  */
 
 const PROPERTY_3D_CONFIGS = {
-  // Vila s bazenom – Pula
+  // ─── Vila s bazenom – Pula ─────────────────────────────────────────────────
   // Model: "Realistic House (With Interior)" by Blender Studio™ (CC BY 4.0)
-  // Architectural model — no room-specific nodes; rooms resolved via volume fallback.
-  // Key nodes: House_120, walls_94, walls.001_95, strop_93, roof_91, Stairs.003_92,
-  //   Door.001–016, DoorFrame.001–015, Window.001–030, Plane.001–019, Cube.001–033
+  // Architectural model with no room-specific nodes — rooms resolved via volume.
+  // This entry exists only because the model predates the standardized viewer.
   'a1000000-0000-0000-0000-000000000008': {
-    modelTransform: {
-      scale: [1, 1, 1],
-      rotation: [0, 0, 0],
-    },
-    overview: {
-      position: [12, 10, 12],
-      target: [0, 1, 0],
-    },
+    modelTransform: { scale: [1, 1, 1], rotation: [0, 0, 0] },
+    overview: { position: [12, 10, 12], target: [0, 1, 0] },
     roomGroups: [
       {
         label: 'Dnevni boravak',
-        rooms: [
-          {
-            label: 'Dnevni boravak',
-            nodeNames: [],
-            // Ground floor – center-right, front-facing zone
-            volume: [0.35, 0.02, 0.5, 0.65, 0.48, 0.8],
-            facing: [0, -1],   // camera near back wall, looks toward front
-          },
-        ],
+        rooms: [{
+          label: 'Dnevni boravak',
+          nodeNames: [],
+          volume: [0.35, 0.02, 0.5, 0.65, 0.48, 0.8],
+          facing: [0, -1],
+        }],
       },
       {
         label: 'Kuhinja',
-        rooms: [
-          {
-            label: 'Kuhinja',
-            nodeNames: [],
-            // Ground floor – left strip
-            volume: [0.05, 0.02, 0.55, 0.35, 0.48, 0.85],
-            facing: [1, 0],    // camera near left wall, looks right
-          },
-        ],
+        rooms: [{
+          label: 'Kuhinja',
+          nodeNames: [],
+          volume: [0.05, 0.02, 0.55, 0.35, 0.48, 0.85],
+          facing: [1, 0],
+        }],
       },
       {
         label: 'Spavaće sobe',
         rooms: [
           {
-            label: 'Spavaća soba 1',
-            nodeNames: [],
-            // Upper floor – right wing
+            label: 'Spavaća soba 1', nodeNames: [],
             volume: [0.55, 0.52, 0.05, 0.9, 0.93, 0.4],
-            // interiorY caps usable floor-to-ceiling band, excluding roof structure
-            // above this storey (volume yMax 0.93 reaches into the roof ridge)
-            interiorY: [0.52, 0.78],
-            facing: [0, 1],    // camera near front wall, looks toward back
-            pullFactor: 0.28,  // keep camera closer to room center
-            eyeHeight: 0.24,   // lower eye level for upper-floor room
+            interiorY: [0.52, 0.78], facing: [0, 1],
+            pullFactor: 0.28, eyeHeight: 0.24,
           },
           {
-            label: 'Spavaća soba 2',
-            nodeNames: [],
-            // Upper floor – left wing
+            label: 'Spavaća soba 2', nodeNames: [],
             volume: [0.1, 0.52, 0.05, 0.45, 0.93, 0.4],
-            interiorY: [0.52, 0.78],
-            facing: [0, 1],
-            pullFactor: 0.28,
-            eyeHeight: 0.24,
+            interiorY: [0.52, 0.78], facing: [0, 1],
+            pullFactor: 0.28, eyeHeight: 0.24,
           },
         ],
       },
@@ -98,39 +68,27 @@ const PROPERTY_3D_CONFIGS = {
         label: 'Kupaonice',
         rooms: [
           {
-            label: 'Kupaonica 1',
-            nodeNames: [],
-            // Upper floor – small room, right side
+            label: 'Kupaonica 1', nodeNames: [],
             volume: [0.55, 0.52, 0.35, 0.8, 0.93, 0.52],
-            interiorY: [0.52, 0.78],
-            facing: [-1, 0],   // camera near right wall, looks left
-            pullFactor: 0.25,  // bathrooms need stronger centering
-            eyeHeight: 0.22,   // slightly lower eye level in compact rooms
+            interiorY: [0.52, 0.78], facing: [-1, 0],
+            pullFactor: 0.25, eyeHeight: 0.22,
           },
           {
-            label: 'Kupaonica 2',
-            nodeNames: [],
-            // Upper floor – small room, left side
+            label: 'Kupaonica 2', nodeNames: [],
             volume: [0.1, 0.52, 0.35, 0.4, 0.93, 0.52],
-            interiorY: [0.52, 0.78],
-            facing: [1, 0],    // camera near left wall, looks right
-            pullFactor: 0.25,
-            eyeHeight: 0.22,
+            interiorY: [0.52, 0.78], facing: [1, 0],
+            pullFactor: 0.25, eyeHeight: 0.22,
           },
         ],
       },
       {
         label: 'Stubište',
-        rooms: [
-          {
-            label: 'Stubište',
-            nodeNames: ['Stairs', 'stairs'],
-            // Full-height central shaft
-            volume: [0.4, 0.02, 0.4, 0.55, 0.93, 0.6],
-            facing: [0, -1],
-            eyeHeight: 0.2,    // low view looks up the staircase
-          },
-        ],
+        rooms: [{
+          label: 'Stubište',
+          nodeNames: ['Stairs', 'stairs'],
+          volume: [0.4, 0.02, 0.4, 0.55, 0.93, 0.6],
+          facing: [0, -1], eyeHeight: 0.2,
+        }],
       },
     ],
   },
@@ -138,7 +96,8 @@ const PROPERTY_3D_CONFIGS = {
 
 /**
  * Look up 3D viewer config for a specific property.
- * Returns null if no config exists for this property.
+ * Returns null if no legacy config exists — the viewer then uses
+ * the standardized auto-detection path.
  */
 export function getProperty3DConfig(propertyId) {
   return PROPERTY_3D_CONFIGS[propertyId] ?? null

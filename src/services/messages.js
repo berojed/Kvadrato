@@ -1,77 +1,77 @@
 import { supabase } from '@/lib/supabase'
 
 /**
- * ─── NAPOMENA O SHEMI ───
- * Ova usluga zahtijeva sljedeću tablicu u Supabase bazi:
+ * ─── NAPOMENA O TOKU ───
+ * Buyer inquiries are sent via the `send-property-inquiry` Edge Function.
+ * The function validates the buyer, rejects self-contact, inserts into the
+ * `message` table FIRST (mandatory), then sends email via Resend (secondary).
  *
- * CREATE TABLE message (
- *   message_id  SERIAL PRIMARY KEY,
- *   sender_id   UUID NOT NULL REFERENCES auth.users(id),
- *   recipient_id UUID NOT NULL REFERENCES auth.users(id),
- *   listing_id  INTEGER REFERENCES listing(listing_id),
- *   content     TEXT NOT NULL,
- *   is_read     BOOLEAN DEFAULT FALSE,
- *   created_at  TIMESTAMPTZ DEFAULT NOW()
- * );
+ * The client calls `supabase.functions.invoke()` — no direct table inserts.
  *
- * -- RLS politike (Row Level Security):
- * ALTER TABLE message ENABLE ROW LEVEL SECURITY;
- *
- * CREATE POLICY "Korisnik vidi vlastite poruke"
- *   ON message FOR SELECT
- *   USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
- *
- * CREATE POLICY "Korisnik šalje poruke"
- *   ON message FOR INSERT
- *   WITH CHECK (auth.uid() = sender_id);
+ * Edge Function returns structured responses:
+ *   - { status: 'success', stored: true, emailSent: true }     → full success
+ *   - { status: 'partial', stored: true, emailSent: false, warning }  → stored, email failed
+ *   - { status: 'error',   stored: false, emailSent: false, error }   → full failure
  */
 
 /**
- * Šalje poruku prodavaču za određeni oglas
+ * Šalje upit prodavaču za određeni oglas putem Edge Function.
+ *
+ * Buyer contact data (phone, WhatsApp, Messenger, etc.) is resolved server-side
+ * from the buyer's profile — not supplied by the frontend.
+ *
+ * @param {Object} params
+ * @param {string} params.senderId    – buyer user id (for local validation)
+ * @param {string} params.recipientId – seller user id (ignored by function, derived from listing)
+ * @param {string} params.listingId   – listing id (UUID)
+ * @param {string} params.content     – inquiry message text
+ *
+ * @returns {{ data: { status: string, stored: boolean, emailSent: boolean, warning?: string } | null, error: { message: string } | null }}
  */
 export async function sendMessage({ senderId, recipientId, listingId, content }) {
-  if (import.meta.env.DEV) console.log('[messages] sendMessage:', { senderId, listingId })
+  if (import.meta.env.DEV) console.log('[messages] sendMessage via Edge Function:', { senderId, listingId })
 
-  // When a listingId is provided, derive the canonical recipient from the
-  // listing's seller_id and reject if sender is the listing owner.
-  // This prevents self-messaging and avoids trusting the caller's recipientId.
-  let resolvedRecipientId = recipientId
-  if (listingId) {
-    const { data: listingRow, error: ownerErr } = await supabase
-      .from('listing')
-      .select('seller_id')
-      .eq('listing_id', listingId)
-      .single()
+  const { data, error } = await supabase.functions.invoke('send-property-inquiry', {
+    body: {
+      listingId,
+      content: content.trim(),
+    },
+  })
 
-    if (ownerErr) {
-      if (import.meta.env.DEV) console.error('[messages] sendMessage – provjera vlasnika neuspješna:', ownerErr.message)
-      return { data: null, error: ownerErr }
-    }
-    if (listingRow.seller_id === senderId) {
-      if (import.meta.env.DEV) console.warn('[messages] sendMessage – odbijeno: prodavač ne može slati poruke za vlastiti oglas')
-      return { data: null, error: { message: 'Prodavač ne može slati poruke za vlastiti oglas.' } }
-    }
-    resolvedRecipientId = listingRow.seller_id
+  // Network / transport error (function unreachable, CORS failure, etc.)
+  if (error) {
+    if (import.meta.env.DEV) console.error('[messages] sendMessage transport error:', error.message)
+    return { data: null, error: { message: error.message || 'Slanje upita nije uspjelo.' } }
   }
 
-  const { data, error } = await supabase
-    .from('message')
-    .insert({
-      sender_id: senderId,
-      recipient_id: resolvedRecipientId,
-      listing_id: listingId,
-      content: content.trim(),
+  // Function returned an error-status response (status: 'error')
+  if (data?.status === 'error') {
+    if (import.meta.env.DEV) console.error('[messages] sendMessage server error:', data.error)
+    return { data: null, error: { message: data.error || 'Slanje upita nije uspjelo.' } }
+  }
+
+  // Legacy compatibility: if function returned { error: '...' } without status field
+  if (data?.error && !data?.status) {
+    if (import.meta.env.DEV) console.error('[messages] sendMessage legacy error:', data.error)
+    return { data: null, error: { message: data.error } }
+  }
+
+  if (import.meta.env.DEV) {
+    console.log('[messages] sendMessage result:', {
+      status: data?.status,
+      stored: data?.stored,
+      emailSent: data?.emailSent,
     })
-    .select()
-    .single()
+    if (data?.warning) console.warn('[messages] Email warning:', data.warning)
+  }
 
-  if (error && import.meta.env.DEV) console.error('[messages] sendMessage greška:', error.message)
-
-  return { data, error }
+  // Return structured data for the UI to distinguish success vs partial
+  return { data, error: null }
 }
 
 /**
- * Dohvaća sve poruke između dva korisnika za određeni oglas
+ * Dohvaća sve poruke između dva korisnika za određeni oglas.
+ * Uses live table columns: buyer_id, seller_id, listing_id, content, notes, timestamp
  */
 export async function getMessages({ userId, otherUserId, listingId }) {
   if (import.meta.env.DEV) console.log('[messages] getMessages:', { userId, otherUserId, listingId })
@@ -80,20 +80,20 @@ export async function getMessages({ userId, otherUserId, listingId }) {
     .from('message')
     .select(`
       *,
-      sender:sender_id(user_id, first_name, last_name),
-      recipient:recipient_id(user_id, first_name, last_name)
+      buyer:buyer_id(user_id, first_name, last_name),
+      seller:seller_id(user_id, first_name, last_name)
     `)
     .eq('listing_id', listingId)
 
   if (otherUserId) {
     query = query.or(
-      `and(sender_id.eq.${userId},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${userId})`
+      `and(buyer_id.eq.${userId},seller_id.eq.${otherUserId}),and(buyer_id.eq.${otherUserId},seller_id.eq.${userId})`
     )
   } else {
-    query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
   }
 
-  query = query.order('created_at', { ascending: true })
+  query = query.order('timestamp', { ascending: true })
   const { data, error } = await query
 
   if (error && import.meta.env.DEV) console.error('[messages] getMessages greška:', error.message)

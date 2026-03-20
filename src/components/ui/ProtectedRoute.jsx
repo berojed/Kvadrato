@@ -22,16 +22,15 @@ export default function ProtectedRoute({ children, role }) {
     )
   }
 
-  // Nije prijavljen → redirect na login
+  // Nije prijavljen → redirect na početnu stranicu
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />
+    return <Navigate to="/" replace />
   }
 
   // Provjera role (ako je specificirana)
   if (role === 'SELLER' && !isSeller) {
     return (
       <div className="container py-24 text-center">
-        <div className="text-5xl mb-4">🔒</div>
         <h2 className="text-xl font-bold mb-2">Pristup ograničen</h2>
         <p className="text-gray-500 mb-6">Ova stranica je dostupna samo prodavačima.</p>
         <Link to="/" className="btn btn-secondary">← Početna</Link>
@@ -42,7 +41,6 @@ export default function ProtectedRoute({ children, role }) {
   if (role === 'BUYER' && !isBuyer) {
     return (
       <div className="container py-24 text-center">
-        <div className="text-5xl mb-4">🔒</div>
         <h2 className="text-xl font-bold mb-2">Pristup ograničen</h2>
         <p className="text-gray-500 mb-6">Ova stranica je dostupna samo kupcima.</p>
         <Link to="/" className="btn btn-secondary">← Početna</Link>

@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { useFavorites } from '@/hooks/useFavorites'
 import PropertyCard from '@/components/ui/PropertyCard'
-import PropertyFilters from '@/components/ui/PropertyFilters'
+import PropertyFilters, { PropertySearchBar } from '@/components/ui/PropertyFilters'
 
 export default function PropertiesPage() {
   const [searchParams] = useSearchParams()
@@ -50,73 +50,100 @@ export default function PropertiesPage() {
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="mb-8">
-        <PropertyFilters
-          filters={filters}
-          onFiltersChange={updateFilters}
-          onReset={resetFilters}
-          totalCount={totalCount}
-        />
+      {/* Search + sort bar — full width */}
+      <div className="mb-6">
+        <PropertySearchBar filters={filters} onFiltersChange={updateFilters} />
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-6">
-          Greška pri dohvaćanju nekretnina: {error}
-        </div>
-      )}
-
-      {/* Grid */}
-      {loading && properties.length === 0 ? (
-        <div className="flex items-center justify-center py-24">
-          <div className="spinner" />
-        </div>
-      ) : properties.length === 0 ? (
-        <div className="text-center py-24">
-          <div className="text-4xl mb-4">🏠</div>
-          <h3 className="text-lg font-semibold mb-2">Nema rezultata</h3>
-          <p className="text-sm text-gray-500 mb-6">
-            Pokušaj promijeniti filtere ili pretragu
-          </p>
-          <button onClick={resetFilters} className="btn btn-secondary">
-            Resetiraj filtere
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {properties.map((listing) => (
-              <PropertyCard
-                key={listing.listing_id}
-                listing={listing}
-                onToggleFavorite={toggleFavorite}
-                isFavorited={isFavorite(listing.listing_id)}
-              />
-            ))}
+      {/* Sidebar + content layout */}
+      <div className="flex gap-8">
+        {/* Left sidebar — filters (hidden on mobile, shown on md+) */}
+        <aside className="hidden md:block w-56 flex-shrink-0">
+          <div className="sticky top-24">
+            <PropertyFilters
+              filters={filters}
+              onFiltersChange={updateFilters}
+              onReset={resetFilters}
+              totalCount={totalCount}
+            />
           </div>
+        </aside>
 
-          {/* Load more */}
-          {hasMore && (
-            <div className="text-center mt-10">
-              <button
-                onClick={loadMore}
-                disabled={loading}
-                className="btn btn-secondary"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Učitavanje…
-                  </>
-                ) : (
-                  'Učitaj još'
-                )}
-              </button>
+        {/* Main content area */}
+        <div className="flex-1 min-w-0">
+          {/* Mobile filters — collapsible on small screens */}
+          <details className="md:hidden mb-6 card p-4">
+            <summary className="text-sm font-medium cursor-pointer select-none">
+              Filteri
+            </summary>
+            <div className="mt-4">
+              <PropertyFilters
+                filters={filters}
+                onFiltersChange={updateFilters}
+                onReset={resetFilters}
+                totalCount={totalCount}
+              />
+            </div>
+          </details>
+
+          {/* Error state */}
+          {error && (
+            <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-6">
+              Greška pri dohvaćanju nekretnina: {error}
             </div>
           )}
-        </>
-      )}
+
+          {/* Grid */}
+          {loading && properties.length === 0 ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="spinner" />
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="text-center py-24">
+              <h3 className="text-lg font-semibold mb-2">Nema rezultata</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Pokušaj promijeniti filtere ili pretragu
+              </p>
+              <button onClick={resetFilters} className="btn btn-secondary">
+                Resetiraj filtere
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {properties.map((listing) => (
+                  <PropertyCard
+                    key={listing.listing_id}
+                    listing={listing}
+                    onToggleFavorite={toggleFavorite}
+                    isFavorited={isFavorite(listing.listing_id)}
+                  />
+                ))}
+              </div>
+
+              {/* Load more */}
+              {hasMore && (
+                <div className="text-center mt-10">
+                  <button
+                    onClick={loadMore}
+                    disabled={loading}
+                    className="btn btn-secondary"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Učitavanje…
+                      </>
+                    ) : (
+                      'Učitaj još'
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

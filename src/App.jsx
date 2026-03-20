@@ -21,6 +21,7 @@ import SellerProfilePage from '@/pages/seller/SellerProfilePage'
 import SellerSettingsPage from '@/pages/seller/SellerSettingsPage'
 import SellerViewingsPage from '@/pages/seller/SellerViewingsPage'
 import AddPropertyPage from '@/pages/seller/AddPropertyPage'
+import SellerPropertyDetailPage from '@/pages/seller/SellerPropertyDetailPage'
 
 // 404
 function NotFoundPage() {
@@ -123,6 +124,22 @@ export default function App() {
                 element={
                   <ProtectedRoute role="SELLER">
                     <SellerViewingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my_properties"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <SellerDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my_properties/:id"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <SellerPropertyDetailPage />
                   </ProtectedRoute>
                 }
               />

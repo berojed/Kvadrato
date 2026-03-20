@@ -1,14 +1,11 @@
-import { useState, useEffect } from 'react'
-import { User, Shield, Eye, Bell, Sun, Moon, Monitor, ChevronRight, Mail, Phone, MapPin, Lock, KeyRound } from 'lucide-react'
+import { useState } from 'react'
+import { Shield, Sun, Moon, Monitor, CheckCircle, AlertCircle } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
-import { getUserProfile } from '@/services/sellers'
 
 const SECTIONS = [
-  { id: 'personal', label: 'Osobni podaci', Icon: User },
   { id: 'security', label: 'Prijava i sigurnost', Icon: Shield },
-  { id: 'privacy', label: 'Privatnost', Icon: Eye },
-  { id: 'notifications', label: 'Obavijesti', Icon: Bell },
+  { id: 'appearance', label: 'Izgled', Icon: Sun },
 ]
 
 const THEME_OPTIONS = [
@@ -17,181 +14,149 @@ const THEME_OPTIONS = [
   { value: 'system', label: 'Sustav', Icon: Monitor },
 ]
 
-// ─── Setting row ───
-function SettingRow({ label, value, placeholder, action }) {
-  return (
-    <div className="flex items-center justify-between py-4 border-b border-border last:border-b-0">
-      <div className="min-w-0">
-        <div className="text-sm font-medium">{label}</div>
-        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-          {value || <span className="italic text-gray-400">{placeholder}</span>}
-        </div>
-      </div>
-      {action && (
-        <button
-          disabled
-          className="text-xs font-medium text-gray-300 cursor-not-allowed ml-4 flex-shrink-0"
-          title="Uskoro dostupno"
-        >
-          {action}
-        </button>
-      )}
-    </div>
-  )
-}
+function SecuritySection() {
+  const { updateAuthPassword } = useAuth()
+  const [pwEditing, setPwEditing] = useState(false)
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwMsg, setPwMsg] = useState(null)
 
-// ─── Personal data section ───
-function PersonalSection({ profile, userEmail }) {
-  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
-  const phone = profile?.phone_number?.[0]
-  const phoneDisplay = phone
-    ? `${phone.phone_country_code} ${phone.phone_number}`
-    : null
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault()
+    if (newPw.length < 6) {
+      setPwMsg({ type: 'error', text: 'Lozinka mora imati najmanje 6 znakova.' })
+      return
+    }
+    if (newPw !== confirmPw) {
+      setPwMsg({ type: 'error', text: 'Lozinke se ne podudaraju.' })
+      return
+    }
 
-  return (
-    <div>
-      <h2 className="text-xl font-semibold mb-1">Osobni podaci</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Podaci koji se koriste za identifikaciju vašeg računa
-      </p>
-      <div className="card p-0">
-        <div className="px-5">
-          <SettingRow
-            label="Ime i prezime"
-            value={fullName}
-            placeholder="Nije dodano"
-            action="Uredi"
-          />
-          <SettingRow
-            label="E-mail adresa"
-            value={userEmail}
-            action="Uredi"
-          />
-          <SettingRow
-            label="Telefonski broj"
-            value={phoneDisplay}
-            placeholder="Nije dodano"
-            action={phoneDisplay ? 'Uredi' : 'Dodaj'}
-          />
-          <SettingRow
-            label="Adresa"
-            value={null}
-            placeholder="Nije dodano"
-            action="Dodaj"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
+    setPwSaving(true)
+    setPwMsg(null)
 
-// ─── Security section ───
-function SecuritySection({ userEmail }) {
+    const { error } = await updateAuthPassword(newPw)
+    setPwSaving(false)
+
+    if (error) {
+      setPwMsg({ type: 'error', text: error.message })
+    } else {
+      setPwMsg({ type: 'success', text: 'Lozinka je uspješno promijenjena.' })
+      setPwEditing(false)
+      setNewPw('')
+      setConfirmPw('')
+      setTimeout(() => setPwMsg(null), 4000)
+    }
+  }
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-1">Prijava na račun i sigurnost</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Upravljajte pristupom i sigurnošću vašeg računa
       </p>
-      <div className="card p-0">
-        <div className="px-5">
-          <SettingRow
-            label="Lozinka"
-            value="••••••••"
-            action="Promijeni"
-          />
-          <SettingRow
-            label="Dvofaktorska autentifikacija"
-            value="Isključeno"
-            action="Postavi"
-          />
-          <SettingRow
-            label="Prijavljeni uređaji"
-            value="1 aktivan uređaj"
-          />
+
+      <div className="card p-5 space-y-4">
+        {/* Password */}
+        <div>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">Lozinka</div>
+              <div className="text-sm text-gray-500">{'••••••••'}</div>
+            </div>
+            {!pwEditing && (
+              <button
+                onClick={() => { setPwEditing(true); setPwMsg(null) }}
+                className="text-xs font-medium text-accent hover:text-accent/80 transition-colors ml-4 flex-shrink-0"
+              >
+                Promijeni
+              </button>
+            )}
+          </div>
+
+          {pwEditing && (
+            <form onSubmit={handlePasswordSubmit} className="mt-3 space-y-3">
+              <input
+                type="password"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                className="input"
+                placeholder="Nova lozinka (min. 6 znakova)"
+                autoFocus
+              />
+              <input
+                type="password"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                className="input"
+                placeholder="Potvrdite novu lozinku"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={pwSaving || !newPw || !confirmPw}
+                  className="btn btn-primary text-xs"
+                >
+                  {pwSaving ? 'Spremanje…' : 'Spremi lozinku'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPwEditing(false); setNewPw(''); setConfirmPw('') }}
+                  className="btn btn-secondary text-xs"
+                >
+                  Odustani
+                </button>
+              </div>
+            </form>
+          )}
+
+          {pwMsg && (
+            <div
+              className={`mt-3 text-sm rounded-lg p-3 flex items-start gap-2 ${
+                pwMsg.type === 'success'
+                  ? 'text-green-700 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800'
+                  : 'text-red-600 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
+              }`}
+            >
+              {pwMsg.type === 'success' ? (
+                <CheckCircle size={14} className="mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+              )}
+              {pwMsg.text}
+            </div>
+          )}
+        </div>
+
+        {/* 2FA — static display */}
+        <div className="border-t border-border pt-4">
+          <div className="text-sm font-medium">Dvofaktorska autentifikacija</div>
+          <div className="text-sm text-gray-500">Isključeno</div>
+        </div>
+
+        {/* Devices — static display */}
+        <div className="border-t border-border pt-4">
+          <div className="text-sm font-medium">Prijavljeni uređaji</div>
+          <div className="text-sm text-gray-500">1 aktivan uređaj</div>
         </div>
       </div>
-      <p className="text-xs text-gray-400 mt-3">
-        Promjena lozinke i dvofaktorska autentifikacija bit će dostupni uskoro.
-      </p>
     </div>
   )
 }
 
-// ─── Privacy section ───
-function PrivacySection() {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold mb-1">Privatnost</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Kontrolirajte tko može vidjeti vaše podatke
-      </p>
-      <div className="card p-0">
-        <div className="px-5">
-          <SettingRow
-            label="Vidljivost profila"
-            value="Javni profil"
-            action="Uredi"
-          />
-          <SettingRow
-            label="Prikaži e-mail na oglasima"
-            value="Da"
-            action="Uredi"
-          />
-          <SettingRow
-            label="Prikaži telefonski broj na oglasima"
-            value="Ne"
-            action="Uredi"
-          />
-        </div>
-      </div>
-      <p className="text-xs text-gray-400 mt-3">
-        Postavke privatnosti su trenutno u razvoju.
-      </p>
-    </div>
-  )
-}
-
-// ─── Notifications section ───
-function NotificationsSection() {
+function AppearanceSection() {
   const { theme, setTheme } = useTheme()
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-1">Obavijesti</h2>
+      <h2 className="text-xl font-semibold mb-1">Izgled</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Upravljajte obavijestima i izgledom aplikacije
+        Odaberite temu aplikacije
       </p>
 
-      {/* E-mail notifications */}
-      <div className="card p-5 mb-4">
-        <h3 className="text-sm font-semibold mb-4">E-mail obavijesti</h3>
-        <div className="space-y-3">
-          <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Nove nekretnine po kriterijima</span>
-            <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
-              <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-            </div>
-          </label>
-          <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Status razgledavanja</span>
-            <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
-              <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-            </div>
-          </label>
-          <label className="flex items-center justify-between pointer-events-none opacity-60">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Promotivne ponude</span>
-            <div className="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full relative">
-              <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-            </div>
-          </label>
-        </div>
-      </div>
-      <p className="text-xs text-gray-400 mt-2">E-mail obavijesti dostupne uskoro.</p>
-
-      {/* Theme */}
       <div className="card p-5">
-        <h3 className="text-sm font-semibold mb-4">Tema i izgled</h3>
+        <h3 className="text-sm font-semibold mb-4">Tema</h3>
         <div className="flex gap-2">
           {THEME_OPTIONS.map(({ value, label, Icon }) => (
             <button
@@ -213,29 +178,15 @@ function NotificationsSection() {
   )
 }
 
-// ─── Main settings page ───
 export default function SettingsPage() {
-  const { user } = useAuth()
-  const [activeSection, setActiveSection] = useState('personal')
-  const [profile, setProfile] = useState(null)
-
-  useEffect(() => {
-    if (!user) return
-    getUserProfile(user.id).then(({ data }) => {
-      if (data) setProfile(data)
-    })
-  }, [user])
+  const [activeSection, setActiveSection] = useState('security')
 
   const renderSection = () => {
     switch (activeSection) {
-      case 'personal':
-        return <PersonalSection profile={profile} userEmail={user?.email} />
       case 'security':
-        return <SecuritySection userEmail={user?.email} />
-      case 'privacy':
-        return <PrivacySection />
-      case 'notifications':
-        return <NotificationsSection />
+        return <SecuritySection />
+      case 'appearance':
+        return <AppearanceSection />
       default:
         return null
     }

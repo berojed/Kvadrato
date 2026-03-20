@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense, Component } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import {
   Bed, Bath, Maximize2, MapPin, Heart, Share2, ChevronLeft,
-  ChevronRight, Phone, Mail, Globe, Calendar, Building,
+  ChevronRight, Mail, Globe, Calendar, Building,
   Flame, Car, Layers, ArrowLeft, Map, MessageSquare, Box
 } from 'lucide-react'
 
@@ -44,6 +44,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useFavorites } from '@/hooks/useFavorites'
 import CalendarPicker from '@/components/ui/CalendarPicker'
 import TimeSlotPicker from '@/components/ui/TimeSlotPicker'
+import PropertyLocationPicker from '@/components/ui/PropertyLocationPicker'
 
 const PROPERTY_TYPE_LABELS = {
   apartment: 'Stan', house: 'Kuća', commercial: 'Poslovni prostor',
@@ -53,7 +54,7 @@ const PROPERTY_TYPE_LABELS = {
 export default function PropertyDetailPage() {
   const { id } = useParams()
   const location = useLocation()
-  const { user, isAuthenticated, isBuyer, isSeller } = useAuth()
+  const { user, profile: authProfile, isAuthenticated, isBuyer, isSeller } = useAuth()
   const { isFavorite, toggleFavorite } = useFavorites()
 
   const isFavoritesContext = location.pathname.startsWith('/favorites')
@@ -73,7 +74,8 @@ export default function PropertyDetailPage() {
 
   const [messageText, setMessageText] = useState('')
   const [msgLoading, setMsgLoading] = useState(false)
-  const [msgSuccess, setMsgSuccess] = useState(false)
+  const [msgSuccess, setMsgSuccess] = useState(false)   // full success: stored + emailed
+  const [msgPartial, setMsgPartial] = useState(null)     // partial: stored but email failed (warning string)
   const [msgError, setMsgError] = useState(null)
   const [show3DViewer, setShow3DViewer] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -91,6 +93,7 @@ export default function PropertyDetailPage() {
     setVisitError(null)
     setMessageText('')
     setMsgSuccess(false)
+    setMsgPartial(null)
     setMsgError(null)
   }, [id])
 
@@ -181,8 +184,9 @@ export default function PropertyDetailPage() {
 
     setMsgLoading(true)
     setMsgError(null)
+    setMsgPartial(null)
 
-    const { error: err } = await sendMessage({
+    const { data: result, error: err } = await sendMessage({
       senderId: user.id,
       recipientId: seller.user_id,
       listingId: listing.listing_id,
@@ -190,10 +194,25 @@ export default function PropertyDetailPage() {
     })
 
     setMsgLoading(false)
-    if (err) setMsgError('Slanje poruke nije uspjelo. Pokušajte ponovo.')
-    else {
+
+    if (err) {
+      setMsgError(err.message || 'Slanje upita nije uspjelo. Pokušajte ponovo.')
+    } else if (result?.status === 'success') {
+      // Full success: stored in DB + email sent
       setMsgSuccess(true)
       setMessageText('')
+    } else if (result?.status === 'partial') {
+      // Partial: stored in DB but email delivery failed
+      setMsgPartial(result.warning || 'Poruka je spremljena, ali email nije poslan.')
+      setMessageText('')
+    } else {
+      // Unexpected response shape — treat as success if stored
+      if (result?.stored) {
+        setMsgPartial('Poruka je spremljena.')
+        setMessageText('')
+      } else {
+        setMsgError('Neočekivani odgovor poslužitelja.')
+      }
     }
   }
 
@@ -325,6 +344,7 @@ export default function PropertyDetailPage() {
 
             <div className="text-3xl font-bold text-black">
               {formatPrice(listing.price_amount, listing.currency)}
+              {listing.listing_type === 'RENT' && <span className="text-sm font-normal text-gray-500">/mj.</span>}
             </div>
           </div>
 
@@ -394,30 +414,35 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
+          {/* Amenities */}
+          {prop.property_amenity?.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Pogodnosti</h2>
+              <div className="flex flex-wrap gap-2">
+                {prop.property_amenity.map((pa, i) => (
+                  <span key={i} className="badge badge-muted">
+                    {pa.amenity?.amenity_name ?? '—'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Location map */}
-          {addressDisplay && (
+          {(addressDisplay || (prop.latitude && prop.longitude)) && (
             <div>
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Map size={18} className="text-gray-400" />
                 Lokacija
               </h2>
-              <div className="rounded-lg overflow-hidden border border-border" style={{ height: '320px' }}>
-                <iframe
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                    [
-                      prop.property_address?.street_address,
-                      prop.location?.city,
-                      prop.location?.country || 'Croatia',
-                    ]
-                      .filter(Boolean)
-                      .join(', ')
-                  )}&output=embed&hl=hr&z=15`}
-                  className="w-full h-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Lokacija nekretnine"
-                />
-              </div>
+              <PropertyLocationPicker
+                address={prop.property_address?.street_address ?? ''}
+                city={prop.location?.city ?? ''}
+                latitude={prop.latitude ?? null}
+                longitude={prop.longitude ?? null}
+                readOnly
+                height="320px"
+              />
             </div>
           )}
 
@@ -534,13 +559,13 @@ export default function PropertyDetailPage() {
               </form>
             )}
           </div>}
-          {/* Messaging form — hidden for sellers */}
+          {/* Inquiry form — hidden for sellers */}
           {!isSeller && seller && (
             <div className="border border-border rounded p-5">
               <div className="flex items-center gap-2 mb-4">
-                <MessageSquare size={16} className="text-gray-500" />
+                <Mail size={16} className="text-gray-500" />
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
-                  Pošalji poruku
+                  Pošalji upit
                 </h3>
               </div>
 
@@ -551,7 +576,7 @@ export default function PropertyDetailPage() {
                   ) : (
                     <>
                       <p className="text-sm text-gray-500 mb-3">
-                        {isAuthenticated ? 'Dostupno samo kupcima' : 'Prijavite se za slanje poruke'}
+                        {isAuthenticated ? 'Dostupno samo kupcima' : 'Prijavite se za slanje upita'}
                       </p>
                       {!isAuthenticated && <Link to="/auth/login" className="btn btn-primary text-sm">Prijava</Link>}
                     </>
@@ -559,22 +584,38 @@ export default function PropertyDetailPage() {
                 </div>
               ) : msgSuccess ? (
                 <div className="text-center py-6">
-                  <div className="text-3xl mb-2">✓</div>
-                  <p className="font-semibold text-sm mb-1">Poruka je poslana!</p>
-                  <p className="text-xs text-gray-500 mb-4">Prodavač će vam odgovoriti uskoro.</p>
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                    <span className="text-green-600 text-lg font-bold">✓</span>
+                  </div>
+                  <p className="font-semibold text-sm mb-1">Upit je poslan!</p>
+                  <p className="text-xs text-gray-500 mb-4">Prodavač će primiti email s Vašom porukom i kontakt podacima.</p>
                   <button
-                    onClick={() => setMsgSuccess(false)}
+                    onClick={() => { setMsgSuccess(false); setMsgPartial(null) }}
                     className="text-xs text-gray-500 hover:text-black underline"
                   >
-                    Pošalji još jednu
+                    Pošalji još jedan upit
+                  </button>
+                </div>
+              ) : msgPartial ? (
+                <div className="text-center py-6">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                    <span className="text-amber-600 text-lg font-bold">!</span>
+                  </div>
+                  <p className="font-semibold text-sm mb-1">Poruka je spremljena</p>
+                  <p className="text-xs text-amber-600 mb-4">{msgPartial}</p>
+                  <button
+                    onClick={() => { setMsgPartial(null); setMsgSuccess(false) }}
+                    className="text-xs text-gray-500 hover:text-black underline"
+                  >
+                    Pošalji još jedan upit
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleMessageSubmit} className="space-y-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1.5">Poruka</label>
+                    <label className="block text-xs text-gray-500 mb-1.5">Poruka prodavaču</label>
                     <textarea
-                      placeholder="Napišite svoju poruku prodavaču…"
+                      placeholder="Zanima me više informacija o ovoj nekretnini…"
                       rows={4}
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
@@ -598,11 +639,15 @@ export default function PropertyDetailPage() {
                       </span>
                     ) : (
                       <>
-                        <MessageSquare size={14} />
-                        Pošalji poruku
+                        <Mail size={14} />
+                        Pošalji upit emailom
                       </>
                     )}
                   </button>
+
+                  <p className="text-[10px] text-gray-400 text-center">
+                    Prodavač će primiti email s Vašom porukom i kontakt podacima.
+                  </p>
                 </form>
               )}
             </div>

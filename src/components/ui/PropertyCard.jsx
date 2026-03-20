@@ -47,7 +47,7 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
       className={cn('card block group', className)}
     >
       {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
         {primaryImage ? (
           <img
             src={primaryImage.url}
@@ -57,7 +57,7 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="text-gray-300 text-sm">Nema slike</div>
+            <div className="text-gray-300 text-sm font-light">Nema slike</div>
           </div>
         )}
 
@@ -67,13 +67,13 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(listing.listing_id) }}
             aria-label={isFavorited ? 'Ukloni iz omiljenih' : 'Dodaj u omiljene'}
             className={cn(
-              'absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all',
+              'absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-soft-sm',
               isFavorited
-                ? 'bg-accent text-white'
-                : 'bg-white/90 text-gray-500 hover:bg-white hover:text-accent'
+                ? 'bg-accent text-white shadow-soft-md'
+                : 'bg-white/95 text-gray-400 hover:bg-white hover:text-accent hover:shadow-soft-md'
             )}
           >
-            <Heart size={14} fill={isFavorited ? 'currentColor' : 'none'} />
+            <Heart size={15} fill={isFavorited ? 'currentColor' : 'none'} />
           </button>
         )}
       </div>
@@ -81,19 +81,19 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
       {/* Content */}
       <div className="p-4">
         {/* Price */}
-        <div className="text-lg font-semibold text-black mb-1">
+        <div className="text-lg font-bold text-black mb-0.5 tracking-tight">
           {formatPrice(listing.price_amount, listing.currency)}
-          {isRent && <span className="text-sm font-normal text-gray-500">/mj.</span>}
+          {isRent && <span className="text-sm font-normal text-gray-400">/mj.</span>}
         </div>
 
         {/* Title */}
-        <h3 className="text-sm font-medium text-gray-900 mb-1 line-clamp-1">
+        <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-1">
           {property.title}
         </h3>
 
         {/* Location */}
         {locationText && (
-          <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
+          <div className="flex items-center gap-1 text-xs text-gray-400 mb-3">
             <MapPin size={11} />
             <span className="line-clamp-1">{locationText}</span>
           </div>
@@ -101,7 +101,7 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
 
         {/* Specs */}
         <div className="divider mb-3" />
-        <div className="flex items-center gap-4 text-xs text-gray-600">
+        <div className="flex items-center gap-4 text-xs text-gray-500 font-medium">
           {property.bedrooms > 0 && (
             <span className="flex items-center gap-1">
               <Bed size={12} />

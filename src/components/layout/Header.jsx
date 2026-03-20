@@ -39,13 +39,13 @@ export default function Header() {
   const settingsLink = isSeller ? '/seller/settings' : '/settings'
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-border">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
       <div className="container">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-semibold text-xl tracking-tight">
-            <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-              <span className="text-white text-xs font-bold">K</span>
+          <Link to="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
+            <div className="w-8 h-8 bg-gradient-to-br from-accent to-orange-500 rounded-lg flex items-center justify-center shadow-soft-sm">
+              <span className="text-white text-sm font-bold">K</span>
             </div>
             <span>Kvadrato</span>
           </Link>
@@ -81,8 +81,8 @@ export default function Header() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-black transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                    <User size={14} />
+                  <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center">
+                    <User size={14} className="text-gray-500" />
                   </div>
                   <span className="hidden lg:block max-w-[120px] truncate">
                     {displayName}
@@ -100,9 +100,9 @@ export default function Header() {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded shadow-lg py-1 z-50">
-                    <div className="px-4 py-2 border-b border-border">
-                      <div className="text-sm font-medium truncate">{displayName}</div>
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-soft-lg py-1.5 z-50">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <div className="text-sm font-semibold truncate">{displayName}</div>
                       <div className="text-xs text-gray-400 truncate">{user?.email}</div>
                     </div>
 

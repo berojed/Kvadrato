@@ -30,18 +30,19 @@ CREATE POLICY "Kupac može kreirati zahtjev za posjet"
 -- Make sure RLS is on
 ALTER TABLE message ENABLE ROW LEVEL SECURITY;
 
--- Drop existing insert policy
-DROP POLICY IF EXISTS "Korisnik šalje poruke" ON message;
-DROP POLICY IF EXISTS "User can send messages" ON message;
-DROP POLICY IF EXISTS "message_insert"         ON message;
+-- Drop existing insert policies by known names
+DROP POLICY IF EXISTS "Korisnik šalje poruke"   ON message;
+DROP POLICY IF EXISTS "Korisnik salje poruke"   ON message;
+DROP POLICY IF EXISTS "User can send messages"  ON message;
+DROP POLICY IF EXISTS "message_insert"          ON message;
 
--- New policy: sender must be auth user; if listing_id is set, sender must not
--- be the listing's owner
-CREATE POLICY "Korisnik šalje poruke"
+-- New policy: buyer_id must be auth user; buyer must not be the listing's owner
+-- Live schema uses buyer_id/seller_id (not sender_id/recipient_id)
+CREATE POLICY "Korisnik salje poruke"
   ON message
   FOR INSERT
   WITH CHECK (
-    auth.uid() = sender_id
+    auth.uid() = buyer_id
     AND (
       listing_id IS NULL
       OR auth.uid() != (

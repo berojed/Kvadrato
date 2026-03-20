@@ -8,6 +8,21 @@ import { getProperty3DConfig } from '@/lib/property3dConfig'
 // Use local Draco decoder instead of Google CDN
 useGLTF.setDecoderPath('/draco/')
 
+// ─── Constants ───
+const TARGET_NORMALIZED_SIZE = 10 // Standardized model size for consistent camera behaviour
+const ROOM_DETECT_PATTERNS = [
+  { pattern: /living|lounge|salon|dnevn/i, label: 'Dnevni boravak', group: 'Dnevni boravak' },
+  { pattern: /kitchen|kitch|küche|kuhinj/i, label: 'Kuhinja', group: 'Kuhinja' },
+  { pattern: /bed(room)?|schlaf|spava/i, label: 'Spavaća soba', group: 'Spavaće sobe' },
+  { pattern: /bath(room)?|wc|toilet|bad|kupao/i, label: 'Kupaonica', group: 'Kupaonice' },
+  { pattern: /stair|treppe|stub/i, label: 'Stubište', group: 'Stubište' },
+  { pattern: /garage|garaž/i, label: 'Garaža', group: 'Garaža' },
+  { pattern: /hall|corridor|flur|hodn/i, label: 'Hodnik', group: 'Hodnik' },
+  { pattern: /balcon|terrace|teras|balkon/i, label: 'Terasa', group: 'Terasa' },
+  { pattern: /office|arbeit|ured|radno/i, label: 'Ured', group: 'Ured' },
+  { pattern: /dining|esszimmer|blagovao/i, label: 'Blagovaonica', group: 'Blagovaonica' },
+]
+
 // ─── Error boundary ───
 class ViewerErrorBoundary extends Component {
   constructor(props) {
@@ -35,7 +50,6 @@ function buildNodeIndex(scene) {
 
   scene.traverse((obj) => {
     if (!obj.name || obj.name === 'Scene' || obj.name === 'Root') return
-    // Only index meshes and groups with geometry
     if (!obj.isMesh && !obj.isGroup) return
 
     tmpBox.setFromObject(obj)
@@ -45,9 +59,7 @@ function buildNodeIndex(scene) {
     tmpBox.getSize(tmpSize)
     const radius = Math.max(tmpSize.x, tmpSize.z) * 0.5
 
-    // Store with lowercase key for case-insensitive matching
     const key = obj.name.toLowerCase()
-    // Keep the largest bounding box if duplicate names exist
     if (!index.has(key) || radius > index.get(key).radius) {
       index.set(key, {
         center: [tmpCenter.x, tmpCenter.y, tmpCenter.z],
@@ -60,8 +72,51 @@ function buildNodeIndex(scene) {
   return index
 }
 
+// ─── Auto-detect rooms from node names using common patterns ───
+function autoDetectRooms(nodeIndex) {
+  if (nodeIndex.size === 0) return null
+
+  const groupMap = new Map() // group label → rooms[]
+  const usedKeys = new Set()
+
+  for (const [key, entry] of nodeIndex) {
+    // Skip very small nodes (likely accessories, not rooms)
+    if (entry.radius < 0.3) continue
+
+    for (const { pattern, label, group } of ROOM_DETECT_PATTERNS) {
+      if (pattern.test(key)) {
+        if (usedKeys.has(key)) break
+        usedKeys.add(key)
+
+        if (!groupMap.has(group)) groupMap.set(group, [])
+        const rooms = groupMap.get(group)
+        const roomLabel = rooms.length > 0 ? `${label} ${rooms.length + 1}` : label
+        rooms.push({
+          label: roomLabel,
+          nodeNames: [key],
+        })
+        break
+      }
+    }
+  }
+
+  if (groupMap.size === 0) return null
+
+  const roomGroups = [...groupMap.entries()].map(([label, rooms]) => ({
+    label,
+    rooms,
+  }))
+
+  if (import.meta.env.DEV) {
+    const totalRooms = roomGroups.reduce((n, g) => n + g.rooms.length, 0)
+    console.log(`[3DViewer] Auto-detected ${totalRooms} room(s) in ${roomGroups.length} group(s)`)
+  }
+
+  return { roomGroups }
+}
+
 // ─── Resolve camera position and target for a room ───
-// Priority: 1) GLTF node match  2) 3D volume  3) legacy 2D zone
+// Priority: 1) GLTF node match  2) 3D volume  3) legacy 2D zone  4) null → stay in overview
 function resolveRoomCamera(room, nodeIndex, modelBounds) {
   // Strategy 1: match configured node names against the scene index
   if (room.nodeNames?.length && nodeIndex.size > 0) {
@@ -82,7 +137,7 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
     if (entry) {
       const [cx, cy, cz] = entry.center
       const height = room.height ?? 1.6
-      const distance = room.distance ?? 1.2
+      const distance = room.distance ?? Math.max(entry.radius * 1.5, 1.2)
       const yaw = room.yawBias ?? 0
       return {
         position: [cx + Math.sin(yaw) * distance, cy + height, cz + Math.cos(yaw) * distance],
@@ -100,7 +155,6 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
   // Strategy 2: 3D volume — normalized [xMin, yMin, zMin, xMax, yMax, zMax]
   if (room.volume) {
     const [vxMin, vyMin, vzMin, vxMax, vyMax, vzMax] = room.volume
-    // X/Z come from the room footprint volume
     const wxMin = -halfX + vxMin * sx,  wxMax = -halfX + vxMax * sx
     const wzMin = -halfZ + vzMin * sz,  wzMax = -halfZ + vzMax * sz
 
@@ -109,21 +163,14 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
     const roomW = wxMax - wxMin
     const roomD = wzMax - wzMin
 
-    // Y comes from a dedicated interior band when provided.
-    // `interiorY` decouples usable floor-to-ceiling height from the coarser
-    // volume bounds, which may include roof/structural space above the room.
-    // Falls back to the volume's own Y range when not specified.
     const [iyMin, iyMax] = room.interiorY ?? [vyMin, vyMax]
     const wiyMin = -halfY + iyMin * sy
     const wiyMax = -halfY + iyMax * sy
     const interiorH = wiyMax - wiyMin
 
-    // Eye level: configurable fraction of interior height from floor (default ≈ 38 %)
     const rawEyeY = wiyMin + interiorH * (room.eyeHeight ?? 0.38)
-    // Clamp to the usable interior band as a safety net
     const eyeY = Math.max(wiyMin, Math.min(wiyMax, rawEyeY))
 
-    // Pull camera toward one face of the room using facing hint or longest axis
     let dx = 0, dz = 0
     if (room.facing) {
       ;[dx, dz] = room.facing
@@ -133,9 +180,6 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
       dx = 1
     }
 
-    // Place camera inside the room volume.
-    // `pullFactor` controls how far from center toward the facing wall:
-    // 0 = exact center, 0.55 = near wall (default legacy behavior).
     const halfW = roomW * 0.5
     const halfD = roomD * 0.5
     const pullFactor = Math.max(0, Math.min(room.pullFactor ?? 0.55, 0.9))
@@ -149,7 +193,7 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
     }
   }
 
-  // Strategy 3: legacy 2D zone — normalized [xMin, zMin, xMax, zMax]
+  // Strategy 3: legacy 2D zone
   if (room.zone) {
     const [xMin, zMin, xMax, zMax] = room.zone
     const worldXMin = -halfX + xMin * sx,  worldXMax = -halfX + xMax * sx
@@ -172,9 +216,8 @@ function resolveRoomCamera(room, nodeIndex, modelBounds) {
   return null
 }
 
-// ─── Model component with auto-centering and scene analysis ───
-function Model({ url, transform, onSceneReady }) {
-  // Second arg enables Draco decoder (uses Google CDN)
+// ─── Model component with auto-centering and optional scale normalization ───
+function Model({ url, transform, normalize, onSceneReady }) {
   const { scene } = useGLTF(url, true)
   const reported = useRef(false)
 
@@ -184,32 +227,45 @@ function Model({ url, transform, onSceneReady }) {
   useEffect(() => {
     if (!scene || reported.current) return
 
-    // Build node index BEFORE centering (names are preserved, positions shift)
-    // We'll rebuild after centering for accurate world positions
-
-    // Compute bounding box and center model at origin
+    // Center model at origin
     const box = new THREE.Box3().setFromObject(scene)
     const center = new THREE.Vector3()
     const size = new THREE.Vector3()
     box.getCenter(center)
     box.getSize(size)
-
     scene.position.sub(center)
 
-    // Now rebuild node index with corrected positions (post-centering)
-    // Force a matrix update so bounding boxes reflect the new position
+    // Scale normalization for standardized mode (no per-property config).
+    // Brings any model to a consistent bounding-box size so overview camera
+    // and orbit controls work reliably regardless of model units.
+    let appliedScale = 1
+    if (normalize) {
+      const maxDim = Math.max(size.x, size.y, size.z)
+      if (maxDim > 0) {
+        appliedScale = TARGET_NORMALIZED_SIZE / maxDim
+        scene.scale.multiplyScalar(appliedScale)
+      }
+    }
+
+    // Rebuild node index with corrected positions
     scene.updateMatrixWorld(true)
     const nodeIndex = buildNodeIndex(scene)
+
+    // Recompute bounds after potential scaling
+    const postBox = new THREE.Box3().setFromObject(scene)
+    const postSize = new THREE.Vector3()
+    postBox.getSize(postSize)
 
     reported.current = true
     onSceneReady?.({
       bounds: {
-        size: [size.x, size.y, size.z],
-        maxDim: Math.max(size.x, size.y, size.z),
+        size: [postSize.x, postSize.y, postSize.z],
+        maxDim: Math.max(postSize.x, postSize.y, postSize.z),
       },
       nodeIndex,
+      wasNormalized: normalize && appliedScale !== 1,
     })
-  }, [scene, onSceneReady])
+  }, [scene, onSceneReady, normalize])
 
   return (
     <primitive
@@ -303,7 +359,6 @@ function RoomPanel({ config, onRoomSelect, onReset, activeRoom }) {
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
       <div className="pointer-events-auto mx-auto max-w-2xl px-3 pb-3">
-        {/* Toggle button */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="mx-auto mb-1 flex items-center gap-1 px-3 py-1 rounded-t-lg bg-black/60 backdrop-blur text-xs text-gray-300 hover:text-white transition-colors"
@@ -314,7 +369,6 @@ function RoomPanel({ config, onRoomSelect, onReset, activeRoom }) {
 
         {expanded && (
           <div className="bg-black/60 backdrop-blur rounded-xl p-2 space-y-1">
-            {/* Reset / overview button */}
             <button
               onClick={onReset}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
@@ -327,7 +381,6 @@ function RoomPanel({ config, onRoomSelect, onReset, activeRoom }) {
               Pregled cijele nekretnine
             </button>
 
-            {/* Room groups */}
             {config.roomGroups.map((group, gi) => {
               const isSingle = group.rooms.length === 1
               const isOpen = openGroup === gi
@@ -408,15 +461,21 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
   const [isRoomMode, setIsRoomMode] = useState(false)
   const [sceneBounds, setSceneBounds] = useState(null)
   const [roomRadius, setRoomRadius] = useState(1)
+  const [effectiveConfig, setEffectiveConfig] = useState(null)
   const nodeIndexRef = useRef(null)
   const controlsRef = useRef()
 
-  const config = propertyId ? getProperty3DConfig(propertyId) : null
+  // Property-specific config is a compatibility fallback only.
+  // When present, it overrides auto-detection; when absent, the viewer
+  // standardizes the model and auto-detects rooms from node names.
+  const legacyConfig = propertyId ? getProperty3DConfig(propertyId) : null
+  const isStandardizedMode = !legacyConfig
 
   // Derive overview camera: use config override or compute from bounds
-  const overview = config?.overview ?? computeOverview(sceneBounds?.maxDim ?? 6)
+  const overview = legacyConfig?.overview
+    ?? effectiveConfig?.overview
+    ?? computeOverview(sceneBounds?.maxDim ?? TARGET_NORMALIZED_SIZE)
 
-  // Initial camera before bounds are known (will animate to overview after load)
   const initialCamera = overview.position
   const initialTarget = overview.target
 
@@ -440,7 +499,6 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
     if (!controlsRef.current) return
     const c = controlsRef.current
     if (isRoomMode) {
-      // Room-relative constraints: tighter for smaller rooms
       const r = Math.max(roomRadius, 0.5)
       c.minDistance = 0.15
       c.maxDistance = r * 3
@@ -448,28 +506,45 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
       c.minPolarAngle = Math.PI * 0.12
     } else {
       c.minDistance = 0.5
-      c.maxDistance = Math.max((sceneBounds?.maxDim ?? 6) * 3, 20)
+      c.maxDistance = Math.max((sceneBounds?.maxDim ?? TARGET_NORMALIZED_SIZE) * 3, 20)
       c.maxPolarAngle = Math.PI * 0.95
       c.minPolarAngle = 0.05
     }
   }, [isRoomMode, sceneBounds, roomRadius])
 
   // After model loads, store scene analysis and animate to overview
-  const handleSceneReady = useCallback(({ bounds, nodeIndex }) => {
+  const handleSceneReady = useCallback(({ bounds, nodeIndex, wasNormalized }) => {
     setSceneBounds(bounds)
     nodeIndexRef.current = nodeIndex
 
     if (import.meta.env.DEV) {
-      console.log('[3DViewer] Scene ready — nodes:', nodeIndex.size, 'maxDim:', bounds.maxDim.toFixed(2))
-      if (nodeIndex.size > 0) {
+      console.log(
+        '[3DViewer] Scene ready — nodes:', nodeIndex.size,
+        'maxDim:', bounds.maxDim.toFixed(2),
+        wasNormalized ? '(normalized)' : '(native scale)',
+        isStandardizedMode ? '[standardized mode]' : '[legacy config mode]'
+      )
+      if (nodeIndex.size > 0 && nodeIndex.size <= 50) {
         console.log('[3DViewer] Node names:', [...nodeIndex.keys()].join(', '))
       }
     }
 
-    const ov = config?.overview ?? computeOverview(bounds.maxDim)
+    // In standardized mode, attempt auto-detection of rooms from node names
+    if (isStandardizedMode) {
+      const detected = autoDetectRooms(nodeIndex)
+      if (detected) {
+        setEffectiveConfig(detected)
+      }
+    }
+
+    const ov = legacyConfig?.overview ?? computeOverview(bounds.maxDim)
     setCameraTarget(ov.position)
     setLookAtTarget(ov.target)
-  }, [config])
+  }, [legacyConfig, isStandardizedMode])
+
+  // The config to use for room navigation:
+  // legacy > auto-detected > null (overview-only)
+  const activeConfig = legacyConfig ?? effectiveConfig
 
   const handleRoomSelect = (room, key) => {
     if (!sceneBounds) return
@@ -477,7 +552,7 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
     const cam = resolveRoomCamera(room, nodeIndexRef.current ?? new Map(), sceneBounds)
 
     if (!cam) {
-      if (import.meta.env.DEV) console.warn('[3DViewer] Could not resolve room:', room.label)
+      if (import.meta.env.DEV) console.warn('[3DViewer] Could not resolve room:', room.label, '— staying in overview')
       return
     }
 
@@ -493,8 +568,9 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
   }
 
   const handleReset = () => {
-    setCameraTarget(overview.position)
-    setLookAtTarget(overview.target)
+    const ov = legacyConfig?.overview ?? computeOverview(sceneBounds?.maxDim ?? TARGET_NORMALIZED_SIZE)
+    setCameraTarget(ov.position)
+    setLookAtTarget(ov.target)
     setActiveRoom(null)
     setIsRoomMode(false)
   }
@@ -537,7 +613,8 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
               <Suspense fallback={null}>
                 <Model
                   url={url}
-                  transform={config?.modelTransform}
+                  transform={legacyConfig?.modelTransform}
+                  normalize={isStandardizedMode}
                   onSceneReady={handleSceneReady}
                 />
               </Suspense>
@@ -562,18 +639,18 @@ export default function Property3DViewerModal({ url, propertyId, onClose }) {
           </Suspense>
         </ViewerErrorBoundary>
 
-        {/* Room navigation panel */}
-        {loaded && config && (
+        {/* Room navigation panel — shown when any config (legacy or auto-detected) has rooms */}
+        {loaded && activeConfig && (
           <RoomPanel
-            config={config}
+            config={activeConfig}
             onRoomSelect={handleRoomSelect}
             onReset={handleReset}
             activeRoom={activeRoom}
           />
         )}
 
-        {/* Hint - only when no room panel */}
-        {loaded && !config && (
+        {/* Hint — shown only when no room navigation is available */}
+        {loaded && !activeConfig && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-500 pointer-events-none">
             Kliknite i povucite za rotiranje · Scroll za zoom · Desni klik za pomicanje
           </div>
