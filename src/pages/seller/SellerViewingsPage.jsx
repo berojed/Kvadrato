@@ -2,32 +2,34 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, MapPin, AlertCircle, CheckCircle, XCircle, User } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { getVisitRequestsBySeller, updateVisitStatus } from '@/services/visits'
+import { useI18n } from '@/context/I18nContext'
+import { getVisitRequestsBySeller, sellerUpdateVisitStatus } from '@/services/visits'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
-const STATUS_LABELS = {
-  PENDING: { label: 'Na čekanju', className: 'bg-yellow-50 text-yellow-700' },
-  CONFIRMED: { label: 'Potvrđeno', className: 'bg-green-50 text-green-700' },
-  CANCELLED: { label: 'Otkazano', className: 'bg-gray-100 text-gray-500' },
-  REJECTED: { label: 'Odbijeno', className: 'bg-red-50 text-red-600' },
+const STATUS_CLASSNAMES = {
+  PENDING: 'bg-yellow-50 text-yellow-700',
+  CONFIRMED: 'bg-green-50 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+  REJECTED: 'bg-red-50 text-red-600',
 }
 
-function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
+function ViewingRow({ visit, isUpcoming, actionLoading, onAction, t, locale }) {
   const listing = visit.listing
   const property = listing?.property
   const location = property?.location
   const images = [...(property?.image ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   const primaryImage = images.find((i) => i.is_primary) ?? images[0]
-  const status = STATUS_LABELS[visit.status] ?? STATUS_LABELS.PENDING
+  const statusClassName = STATUS_CLASSNAMES[visit.status] ?? STATUS_CLASSNAMES.PENDING
+  const statusLabel = t('status.' + visit.status) ?? t('status.PENDING')
 
   const buyer = visit.buyer
-  const buyerName = [buyer?.first_name, buyer?.last_name].filter(Boolean).join(' ') || buyer?.email || 'Nepoznat'
+  const buyerName = [buyer?.first_name, buyer?.last_name].filter(Boolean).join(' ') || buyer?.email || t('common.user')
 
   const dateTime = visit.requested_datetime ? new Date(visit.requested_datetime) : null
-  const formattedDate = dateTime ? formatDate(dateTime) : '—'
+  const formattedDate = dateTime ? formatDate(dateTime, locale) : '—'
   const formattedTime = dateTime
-    ? dateTime.toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit' })
+    ? dateTime.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     : '—'
 
   const locationText = location
@@ -54,7 +56,7 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
             to={`/properties/${listing?.listing_id}`}
             className="text-sm font-semibold hover:underline truncate"
           >
-            {property?.title ?? 'Nekretnina'}
+            {property?.title ?? t('common.property')}
           </Link>
           {isUpcoming && (
             <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0', status.className)}>
@@ -100,7 +102,7 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
                 className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800 disabled:opacity-50 transition-colors"
               >
                 <CheckCircle size={12} />
-                Potvrdi
+                {t('viewing.confirmAction')}
               </button>
               <button
                 onClick={() => onAction(visit.request_id, 'REJECTED')}
@@ -108,7 +110,7 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
                 className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
               >
                 <XCircle size={12} />
-                Odbij
+                {t('viewing.rejectAction')}
               </button>
             </div>
           )}
@@ -120,6 +122,7 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction }) {
 
 export default function SellerViewingsPage() {
   const { user } = useAuth()
+  const { t, locale } = useI18n()
   const [visits, setVisits] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -141,7 +144,7 @@ export default function SellerViewingsPage() {
 
   const handleAction = async (requestId, newStatus) => {
     setActionLoadingId(requestId)
-    const { error: err } = await updateVisitStatus(requestId, newStatus)
+    const { error: err } = await sellerUpdateVisitStatus(requestId, user.id, newStatus)
     if (err) {
       setError(err.message)
     } else {
@@ -176,8 +179,8 @@ export default function SellerViewingsPage() {
     <div className="min-h-screen bg-[#F9FAFB]">
       <div className="container py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-1">Razgledavanja</h1>
-          <p className="text-sm text-gray-500">Upravljajte zahtjevima za razgledavanje vaših nekretnina</p>
+          <h1 className="text-3xl font-bold mb-1">{t('seller.viewingsTitle')}</h1>
+          <p className="text-sm text-gray-500">{t('seller.viewingsSubtitle')}</p>
         </div>
 
         {error && (
@@ -190,7 +193,7 @@ export default function SellerViewingsPage() {
         {/* Upcoming */}
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-4">
-            Nadolazeća razgledavanja
+            {t('viewing.upcoming')}
             {upcoming.length > 0 && (
               <span className="ml-2 text-sm font-normal text-gray-400">({upcoming.length})</span>
             )}
@@ -198,9 +201,9 @@ export default function SellerViewingsPage() {
           {upcoming.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 shadow-sm">
               <Calendar size={40} className="mx-auto mb-3 text-gray-300" />
-              <h3 className="font-semibold mb-2">Nema nadolazećih razgledavanja</h3>
+              <h3 className="font-semibold mb-2">{t('viewing.sellerNoUpcoming')}</h3>
               <p className="text-sm text-gray-500">
-                Kada kupci zatraže razgledavanje, zahtjevi će se pojaviti ovdje
+                {t('viewing.sellerNoUpcomingHint')}
               </p>
             </div>
           ) : (
@@ -212,6 +215,8 @@ export default function SellerViewingsPage() {
                   isUpcoming={true}
                   actionLoading={actionLoadingId === v.request_id}
                   onAction={handleAction}
+                  t={t}
+                  locale={locale}
                 />
               ))}
             </div>
@@ -221,7 +226,7 @@ export default function SellerViewingsPage() {
         {/* Past */}
         <section>
           <h2 className="text-lg font-semibold mb-4">
-            Prošla razgledavanja
+            {t('viewing.past')}
             {past.length > 0 && (
               <span className="ml-2 text-sm font-normal text-gray-400">({past.length})</span>
             )}
@@ -229,9 +234,9 @@ export default function SellerViewingsPage() {
           {past.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 shadow-sm">
               <Clock size={40} className="mx-auto mb-3 text-gray-300" />
-              <h3 className="font-semibold mb-2">Nema prošlih razgledavanja</h3>
+              <h3 className="font-semibold mb-2">{t('viewing.sellerNoPast')}</h3>
               <p className="text-sm text-gray-500">
-                Ovdje će se prikazati razgledavanja koja su završila
+                {t('viewing.sellerNoPastHint')}
               </p>
             </div>
           ) : (
@@ -243,6 +248,8 @@ export default function SellerViewingsPage() {
                   isUpcoming={false}
                   actionLoading={false}
                   onAction={() => {}}
+                  t={t}
+                  locale={locale}
                 />
               ))}
             </div>

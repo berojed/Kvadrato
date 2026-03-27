@@ -1,41 +1,7 @@
 import { Search, X } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-
-const PROPERTY_TYPES = [
-  { value: '', label: 'Svi tipovi' },
-  { value: 'Stan', label: 'Stan' },
-  { value: 'Kuća', label: 'Kuća' },
-  { value: 'Poslovni prostor', label: 'Poslovni prostor' },
-]
-
-const SORT_OPTIONS = [
-  { value: 'date_listed:desc', label: 'Najnovije' },
-  { value: 'date_listed:asc', label: 'Najstarije' },
-  { value: 'price_amount:asc', label: 'Cijena: rastuće' },
-  { value: 'price_amount:desc', label: 'Cijena: padajuće' },
-]
-
-const LISTING_TYPE_OPTIONS = [
-  { value: '', label: 'Sve' },
-  { value: 'SALE', label: 'Prodaja' },
-  { value: 'RENT', label: 'Najam' },
-]
-
-const BEDROOM_OPTIONS = [
-  { value: null, label: 'Sve' },
-  { value: 1, label: '1+' },
-  { value: 2, label: '2+' },
-  { value: 3, label: '3+' },
-  { value: 4, label: '4+' },
-]
-
-const BATHROOM_OPTIONS = [
-  { value: null, label: 'Sve' },
-  { value: 1, label: '1+' },
-  { value: 2, label: '2+' },
-  { value: 3, label: '3+' },
-]
+import { useI18n } from '@/context/I18nContext'
 
 // Croatian counties → major cities/towns
 const CROATIAN_LOCATIONS = {
@@ -70,6 +36,7 @@ const STATE_OPTIONS = ['', ...Object.keys(CROATIAN_LOCATIONS).sort((a, b) => {
 
 /* ── Search + Sort top bar (rendered separately in PropertiesPage) ── */
 export function PropertySearchBar({ filters, onFiltersChange }) {
+  const { t } = useI18n()
   const [searchValue, setSearchValue] = useState(filters.search ?? '')
   const debounceRef = useRef(null)
 
@@ -99,13 +66,20 @@ export function PropertySearchBar({ filters, onFiltersChange }) {
 
   const currentSort = `${filters.sortBy}:${filters.sortOrder}`
 
+  const sortOptions = [
+    { value: 'date_listed:desc', label: t('filters.sortNewest') },
+    { value: 'date_listed:asc', label: t('filters.sortOldest') },
+    { value: 'price_amount:asc', label: t('filters.sortPriceAsc') },
+    { value: 'price_amount:desc', label: t('filters.sortPriceDesc') },
+  ]
+
   return (
     <div className="flex gap-3">
       <div className="flex-1 relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          placeholder="Pretraži po nazivu ili gradu…"
+          placeholder={t('property.searchPlaceholder')}
           value={searchValue}
           onChange={handleSearchChange}
           className="input pl-9 pr-9"
@@ -126,7 +100,7 @@ export function PropertySearchBar({ filters, onFiltersChange }) {
         onChange={handleSortChange}
         className="select w-auto min-w-[160px]"
       >
-        {SORT_OPTIONS.map((opt) => (
+        {sortOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>
@@ -138,6 +112,36 @@ export function PropertySearchBar({ filters, onFiltersChange }) {
 
 /* ── Sidebar filters (always visible) ── */
 export default function PropertyFilters({ filters, onFiltersChange, onReset, totalCount }) {
+  const { t } = useI18n()
+
+  const propertyTypes = [
+    { value: '', label: t('filters.allTypes') },
+    { value: 'Stan', label: 'Stan' },
+    { value: 'Kuća', label: 'Kuća' },
+    { value: 'Poslovni prostor', label: 'Poslovni prostor' },
+  ]
+
+  const listingTypeOptions = [
+    { value: '', label: t('common.all') },
+    { value: 'SALE', label: t('common.sale') },
+    { value: 'RENT', label: t('common.rent') },
+  ]
+
+  const bedroomOptions = [
+    { value: null, label: t('common.all') },
+    { value: 1, label: '1+' },
+    { value: 2, label: '2+' },
+    { value: 3, label: '3+' },
+    { value: 4, label: '4+' },
+  ]
+
+  const bathroomOptions = [
+    { value: null, label: t('common.all') },
+    { value: 1, label: '1+' },
+    { value: 2, label: '2+' },
+    { value: 3, label: '3+' },
+  ]
+
   const handleStateChange = (e) => {
     const state = e.target.value
     onFiltersChange({ stateRegion: state, city: '' })
@@ -162,9 +166,9 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
     <div className="space-y-6">
       {/* Listing type toggle */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tip oglasa</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.listingType')}</label>
         <div className="inline-flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 w-full">
-          {LISTING_TYPE_OPTIONS.map((opt) => (
+          {listingTypeOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onFiltersChange({ listingType: opt.value })}
@@ -183,15 +187,15 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Property type */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Tip nekretnine</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.propertyType')}</label>
         <select
           value={filters.propertyType ?? ''}
           onChange={(e) => onFiltersChange({ propertyType: e.target.value })}
           className="select"
         >
-          {PROPERTY_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
+          {propertyTypes.map((pt) => (
+            <option key={pt.value} value={pt.value}>
+              {pt.label}
             </option>
           ))}
         </select>
@@ -199,11 +203,11 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Price range */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Cijena (€)</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.price')}</label>
         <div className="space-y-2">
           <input
             type="number"
-            placeholder="Od"
+            placeholder={t('filters.from')}
             value={filters.minPrice ?? ''}
             onChange={(e) =>
               onFiltersChange({ minPrice: e.target.value ? Number(e.target.value) : null })
@@ -213,7 +217,7 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
           />
           <input
             type="number"
-            placeholder="Do"
+            placeholder={t('filters.to')}
             value={filters.maxPrice ?? ''}
             onChange={(e) =>
               onFiltersChange({ maxPrice: e.target.value ? Number(e.target.value) : null })
@@ -226,9 +230,9 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Bedrooms */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Min soba</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.minBedrooms')}</label>
         <div className="flex gap-1.5">
-          {BEDROOM_OPTIONS.map((opt) => (
+          {bedroomOptions.map((opt) => (
             <button
               key={opt.value ?? 'all'}
               onClick={() => onFiltersChange({ minBedrooms: opt.value })}
@@ -247,9 +251,9 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Bathrooms */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Min. kupaonica</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.minBathrooms')}</label>
         <div className="flex gap-1.5">
-          {BATHROOM_OPTIONS.map((opt) => (
+          {bathroomOptions.map((opt) => (
             <button
               key={opt.value ?? 'all'}
               onClick={() => onFiltersChange({ minBathrooms: opt.value })}
@@ -268,11 +272,11 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Property size */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Površina (m²)</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.area')}</label>
         <div className="space-y-2">
           <input
             type="number"
-            placeholder="Od"
+            placeholder={t('filters.from')}
             value={filters.minSize ?? ''}
             onChange={(e) =>
               onFiltersChange({ minSize: e.target.value ? Number(e.target.value) : null })
@@ -282,7 +286,7 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
           />
           <input
             type="number"
-            placeholder="Do"
+            placeholder={t('filters.to')}
             value={filters.maxSize ?? ''}
             onChange={(e) =>
               onFiltersChange({ maxSize: e.target.value ? Number(e.target.value) : null })
@@ -295,13 +299,13 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Location — State */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Županija</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.county')}</label>
         <select
           value={selectedState}
           onChange={handleStateChange}
           className="select"
         >
-          <option value="">Sve županije</option>
+          <option value="">{t('filters.allCounties')}</option>
           {STATE_OPTIONS.filter(Boolean).map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -310,14 +314,14 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
 
       {/* Location — City */}
       <div>
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Grad / naselje</label>
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('filters.city')}</label>
         <select
           value={filters.city ?? ''}
           onChange={(e) => onFiltersChange({ city: e.target.value })}
           disabled={!selectedState}
           className="select disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <option value="">Svi gradovi</option>
+          <option value="">{t('filters.allCities')}</option>
           {cityOptions.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
@@ -327,11 +331,11 @@ export default function PropertyFilters({ filters, onFiltersChange, onReset, tot
       {/* Results + reset */}
       <div className="pt-4 border-t border-border space-y-3">
         <div className="text-xs text-gray-500">
-          {totalCount} {totalCount === 1 ? 'nekretnina' : 'nekretnina'}
+          {t('filters.resultsCount', { count: totalCount })}
         </div>
         {hasActiveFilters && (
           <button onClick={onReset} className="text-xs text-gray-500 hover:text-black dark:hover:text-white underline">
-            Resetiraj filtere
+            {t('property.resetFilters')}
           </button>
         )}
       </div>

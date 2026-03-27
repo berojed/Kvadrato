@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Edit2, Trash2, Home, MessageCircle, Calendar, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import { getListingsBySeller, deleteListing } from '@/services/properties'
 import { getVisitRequestsBySeller } from '@/services/visits'
 import { getSellerContactsCount } from '@/services/sellers'
@@ -11,6 +12,7 @@ const PER_PAGE = 6
 
 export default function SellerDashboardPage() {
   const { user } = useAuth()
+  const { t, locale } = useI18n()
   const navigate = useNavigate()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -65,14 +67,18 @@ export default function SellerDashboardPage() {
   }
 
   const handleDelete = async (listingId) => {
-    if (!window.confirm('Jesi li siguran da želiš obrisati ovaj oglas?')) return
+    if (!window.confirm(t('seller.deleteConfirm'))) return
     setDeletingId(listingId)
     const { error: err } = await deleteListing(listingId)
     setDeletingId(null)
-    if (err) alert('Greška pri brisanju: ' + err.message)
+    if (err) alert(t('seller.deleteError') + ': ' + err.message)
     else {
+      const deleted = listings.find((l) => l.listing_id === listingId)
+      const wasActive = deleted?.listing_status?.status_code === 'ACTIVE'
       setListings((prev) => prev.filter((l) => l.listing_id !== listingId))
-      setMetrics((m) => ({ ...m, active: Math.max(0, m.active - 1) }))
+      if (wasActive) {
+        setMetrics((m) => ({ ...m, active: Math.max(0, m.active - 1) }))
+      }
     }
   }
 
@@ -91,12 +97,12 @@ export default function SellerDashboardPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-1">Moje nekretnine</h1>
-            <p className="text-sm text-gray-500">Upravljajte svojim oglasima i pratite aktivnost</p>
+            <h1 className="text-3xl font-bold mb-1">{t('seller.dashboardTitle')}</h1>
+            <p className="text-sm text-gray-500">{t('seller.dashboardSubtitle')}</p>
           </div>
           <Link to="/seller/add" className="btn btn-primary">
             <Plus size={15} />
-            Dodaj oglas
+            {t('seller.addListing')}
           </Link>
         </div>
 
@@ -107,7 +113,7 @@ export default function SellerDashboardPage() {
               <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
                 <Home size={16} className="text-green-600" />
               </div>
-              <span className="text-xs font-medium text-gray-500">Aktivni oglasi</span>
+              <span className="text-xs font-medium text-gray-500">{t('seller.metricActive')}</span>
             </div>
             <div className="text-2xl font-bold">{loading ? '—' : metrics.active}</div>
           </div>
@@ -116,7 +122,7 @@ export default function SellerDashboardPage() {
               <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
                 <Calendar size={16} className="text-blue-600" />
               </div>
-              <span className="text-xs font-medium text-gray-500">Nadolazeća razgledavanja</span>
+              <span className="text-xs font-medium text-gray-500">{t('seller.metricUpcoming')}</span>
             </div>
             <div className="text-2xl font-bold">{loading ? '—' : metrics.upcomingViewings}</div>
           </div>
@@ -125,7 +131,7 @@ export default function SellerDashboardPage() {
               <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center">
                 <MessageCircle size={16} className="text-purple-600" />
               </div>
-              <span className="text-xs font-medium text-gray-500">Ostvareno kontakata</span>
+              <span className="text-xs font-medium text-gray-500">{t('seller.metricContacts')}</span>
             </div>
             <div className="text-2xl font-bold">{loading ? '—' : metrics.contacts}</div>
           </div>
@@ -141,10 +147,10 @@ export default function SellerDashboardPage() {
         ) : listings.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-200 shadow-sm">
             <Home size={40} className="mx-auto mb-3 text-gray-300" />
-            <h3 className="font-semibold mb-2">Nema oglasa</h3>
-            <p className="text-sm text-gray-500 mb-5">Dodajte svoju prvu nekretninu</p>
+            <h3 className="font-semibold mb-2">{t('seller.noListings')}</h3>
+            <p className="text-sm text-gray-500 mb-5">{t('seller.addFirstListing')}</p>
             <Link to="/seller/add" className="btn btn-primary">
-              <Plus size={14} /> Dodaj oglas
+              <Plus size={14} /> {t('seller.addListing')}
             </Link>
           </div>
         ) : (
@@ -193,7 +199,7 @@ export default function SellerDashboardPage() {
                           {prop.title ?? 'Nekretnina'}
                         </Link>
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 whitespace-nowrap flex-shrink-0 uppercase tracking-wide">
-                          {listing.listing_type === 'SALE' ? 'Prodaja' : 'Najam'}
+                          {listing.listing_type === 'SALE' ? t('common.sale') : t('common.rent')}
                         </span>
                       </div>
 
@@ -215,9 +221,9 @@ export default function SellerDashboardPage() {
                     <div className="flex flex-col items-end justify-between flex-shrink-0">
                       <div className="text-right">
                         <div className="text-sm font-bold">
-                          {formatPrice(listing.price_amount, listing.currency?.currency_code)}
+                          {formatPrice(listing.price_amount, listing.currency)}
                           {listing.listing_type === 'RENT' && (
-                            <span className="text-xs font-normal text-gray-400">/mj.</span>
+                            <span className="text-xs font-normal text-gray-400">{t('common.perMonth')}</span>
                           )}
                         </div>
                         <span
@@ -236,7 +242,7 @@ export default function SellerDashboardPage() {
                           to={`/seller/edit/${listing.listing_id}`}
                           onClick={(e) => e.stopPropagation()}
                           className="p-1.5 text-gray-400 hover:text-black rounded hover:bg-gray-50 transition-colors"
-                          title="Uredi"
+                          title={t('common.edit')}
                         >
                           <Edit2 size={14} />
                         </Link>
@@ -244,7 +250,7 @@ export default function SellerDashboardPage() {
                           onClick={(e) => { e.stopPropagation(); handleDelete(listing.listing_id) }}
                           disabled={isDeleting}
                           className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
-                          title="Obriši"
+                          title={t('common.delete')}
                         >
                           <Trash2 size={14} />
                         </button>

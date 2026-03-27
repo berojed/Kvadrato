@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/context/I18nContext'
 
 const DEFAULT_SLOTS = [
   '09:00', '10:00', '11:00', '12:00', '13:00',
@@ -6,9 +7,10 @@ const DEFAULT_SLOTS = [
 ]
 
 export default function TimeSlotPicker({ selectedTime, onTimeSelect, slots = DEFAULT_SLOTS }) {
+  const { t } = useI18n()
   return (
     <div>
-      <label className="block text-xs text-gray-500 mb-2">Odaberi vrijeme</label>
+      <label className="block text-xs text-gray-500 mb-2">{t('viewing.selectTime')}</label>
       <div className="grid grid-cols-5 gap-1.5">
         {slots.map((slot) => (
           <button

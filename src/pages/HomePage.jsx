@@ -4,18 +4,19 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ArrowRight, Home, Building2, Landmark, MapPin, Plus, BarChart3 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 
-const CATEGORIES = [
-  { type: 'Stan',             label: 'Stanovi',           icon: Building2, description: 'Moderni gradski stanovi' },
-  { type: 'Kuća',             label: 'Kuće',              icon: Home,      description: 'Obiteljske kuće i vile' },
-  { type: 'Poslovni prostor', label: 'Poslovni prostori', icon: Landmark,  description: 'Uredi i lokali' },
+const CATEGORIES_CONFIG = [
+  { type: 'Stan',             labelKey: 'home.catApartments',  icon: Building2, descKey: 'home.catApartmentsDesc' },
+  { type: 'Kuća',             labelKey: 'home.catHouses',      icon: Home,      descKey: 'home.catHousesDesc' },
+  { type: 'Poslovni prostor', labelKey: 'home.catCommercial',  icon: Landmark,  descKey: 'home.catCommercialDesc' },
 ]
 
-const STATS = [
-  { value: '1.200+', label: 'Aktivnih oglasa' },
-  { value: '450+', label: 'Zadovoljnih kupaca' },
-  { value: '80+', label: 'Verificiranih prodavača' },
-  { value: '5 god.', label: 'Iskustva na tržištu' },
+const STATS_CONFIG = [
+  { value: '1.200+', labelKey: 'home.statsActiveListings' },
+  { value: '450+', labelKey: 'home.statsHappyBuyers' },
+  { value: '80+', labelKey: 'home.statsVerifiedSellers' },
+  { value: '5 god.', labelKey: 'home.statsYearsExperience' },
 ]
 
 /* ────────────────────────────────────────────
@@ -23,6 +24,7 @@ const STATS = [
    ali s različitim CTA-ovima
    ──────────────────────────────────────────── */
 function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
@@ -91,32 +93,31 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
           {isSeller ? (
             <>
               <h1 className="text-5xl md:text-7xl font-bold leading-[1.08] text-white mb-6">
-                Upravljaj<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-400">svojim</span> oglasima.
+                {t('home.sellerHeroTitle')}<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-400">{t('home.sellerHeroAccent')}</span> {t('home.sellerHeroEnd')}
               </h1>
               <p className="text-lg text-gray-300 mb-10 max-w-xl leading-relaxed font-light">
-                Objavi nekretnine, prati preglede i upravljaj upitima kupaca — sve na jednom mjestu.
+                {t('home.sellerHeroSubtitle')}
               </p>
               <div className="flex gap-3">
                 <Link to="/seller/add" className="btn btn-primary btn-lg">
                   <Plus size={16} />
-                  Dodaj nekretninu
+                  {t('home.addProperty')}
                 </Link>
                 <Link to="/seller/dashboard" className="btn btn-ghost text-white border border-white/15 hover:bg-white/10 rounded-xl">
                   <BarChart3 size={16} />
-                  Dashboard
+                  {t('home.dashboard')}
                 </Link>
               </div>
             </>
           ) : (
             <>
               <h1 className="text-5xl md:text-7xl font-bold leading-[1.08] text-white mb-6">
-                Pronađi<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-400">savršen</span> prostor.
+                {t('home.heroTitle')}<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-orange-400">{t('home.heroTitleAccent')}</span> {t('home.heroTitleEnd')}
               </h1>
               <p className="text-lg text-gray-300 mb-10 max-w-xl leading-relaxed font-light">
-                Pregledaj tisuće nekretnina, filtriraj po željama i kontaktiraj prodavača direktno.
-                Jednostavno, brzo, pouzdano.
+                {t('home.heroSubtitle')}
               </p>
 
               <form onSubmit={handleSearch} className="flex gap-2 max-w-lg">
@@ -124,7 +125,7 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
                   <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
                   <input
                     type="text"
-                    placeholder="Grad ili mjesto…"
+                    placeholder={t('home.searchPlaceholder')}
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
@@ -156,7 +157,7 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
                   whileTap={{ scale: 0.98 }}
                   className="btn btn-primary rounded-xl px-6"
                 >
-                  Pretraži
+                  {t('common.search')}
                 </motion.button>
               </form>
             </>
@@ -175,26 +176,27 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
    BUYER CATEGORIES — samo za kupce i goste
    ──────────────────────────────────────────── */
 function BuyerCategories() {
+  const { t } = useI18n()
   return (
     <section className="section">
       <div className="container">
         <div className="flex items-end justify-between mb-10">
           <div>
             <div className="text-xs font-medium uppercase tracking-widest text-gray-400 mb-2">
-              Kategorije
+              {t('home.categoriesLabel')}
             </div>
-            <h2 className="text-3xl font-bold">Što tražiš?</h2>
+            <h2 className="text-3xl font-bold">{t('home.categoriesTitle')}</h2>
           </div>
           <Link
             to="/properties"
             className="hidden md:flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black transition-colors"
           >
-            Sve nekretnine <ArrowRight size={14} />
+            {t('home.allProperties')} <ArrowRight size={14} />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {CATEGORIES.map((cat, i) => (
+          {CATEGORIES_CONFIG.map((cat, i) => (
             <motion.div
               key={cat.type}
               initial={{ opacity: 0, y: 20 }}
@@ -209,10 +211,10 @@ function BuyerCategories() {
                 <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
                   <cat.icon size={22} className="text-accent" />
                 </div>
-                <h3 className="font-semibold text-black mb-1">{cat.label}</h3>
-                <p className="text-xs text-gray-500 font-light">{cat.description}</p>
+                <h3 className="font-semibold text-black mb-1">{t(cat.labelKey)}</h3>
+                <p className="text-xs text-gray-500 font-light">{t(cat.descKey)}</p>
                 <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-gray-400 group-hover:text-accent transition-colors">
-                  Pregledaj <ArrowRight size={12} />
+                  {t('home.browse')} <ArrowRight size={12} />
                 </div>
               </Link>
             </motion.div>
@@ -228,6 +230,7 @@ function BuyerCategories() {
    ──────────────────────────────────────────── */
 export default function HomePage() {
   const { isAuthenticated, isSeller, isBuyer } = useAuth()
+  const { t } = useI18n()
 
   return (
     <div>
@@ -242,10 +245,10 @@ export default function HomePage() {
       <section className="border-b border-gray-100">
         <div className="container py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
+            {STATS_CONFIG.map((stat) => (
+              <div key={stat.labelKey} className="text-center">
                 <div className="text-3xl font-bold text-black tracking-tight">{stat.value}</div>
-                <div className="text-xs text-gray-400 mt-1.5 font-medium">{stat.label}</div>
+                <div className="text-xs text-gray-400 mt-1.5 font-medium">{t(stat.labelKey)}</div>
               </div>
             ))}
           </div>
@@ -261,18 +264,18 @@ export default function HomePage() {
           <div className="container py-24">
             <div className="max-w-2xl mx-auto text-center">
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent mb-4 bg-orange-50 px-3 py-1.5 rounded-full">
-                Pridruži se
+                {t('home.joinLabel')}
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Kupuješ ili prodaješ?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('home.joinTitle')}</h2>
               <p className="text-gray-500 mb-10 font-light text-lg">
-                Registriraj se besplatno i pristupi svim funkcionalnostima platforme.
+                {t('home.joinSubtitle')}
               </p>
               <div className="flex gap-3 justify-center">
                 <Link to="/auth/register" className="btn btn-primary btn-lg">
-                  Registriraj se
+                  {t('nav.register')}
                 </Link>
                 <Link to="/auth/login" className="btn btn-secondary btn-lg">
-                  Prijavi se
+                  {t('nav.signIn')}
                 </Link>
               </div>
             </div>

@@ -6,36 +6,41 @@ export function cn(...inputs) {
 }
 
 /**
- * Formatira cijenu
+ * Formatira cijenu — locale-aware
  * Podržava i string ('EUR') i objekt ({ currency_name, symbol })
+ * @param {number} price
+ * @param {string|object} currency
+ * @param {string} locale - BCP 47 locale tag, default 'hr-HR'
  */
-export function formatPrice(price, currency = 'EUR') {
+export function formatPrice(price, currency = 'EUR', locale = 'hr-HR') {
   if (!price && price !== 0) return '—'
 
   // Ako je currency objekt iz Supabase, koristi symbol
   if (typeof currency === 'object' && currency !== null) {
     const symbol = currency.symbol || '€'
-    return `${new Intl.NumberFormat('hr-HR', { maximumFractionDigits: 0 }).format(price)} ${symbol}`
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(price)} ${symbol}`
   }
 
   // Ako je string (ISO kod), koristi Intl
   try {
-    return new Intl.NumberFormat('hr-HR', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       maximumFractionDigits: 0,
     }).format(price)
   } catch {
-    return `${new Intl.NumberFormat('hr-HR', { maximumFractionDigits: 0 }).format(price)} €`
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(price)} €`
   }
 }
 
 /**
- * Formatira datum u čitljiv oblik
+ * Formatira datum u čitljiv oblik — locale-aware
+ * @param {string|Date} date
+ * @param {string} locale - BCP 47 locale tag, default 'hr-HR'
  */
-export function formatDate(date) {
+export function formatDate(date, locale = 'hr-HR') {
   if (!date) return '—'
-  return new Intl.DateTimeFormat('hr-HR', {
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

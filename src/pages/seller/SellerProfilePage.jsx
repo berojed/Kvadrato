@@ -10,9 +10,11 @@ import {
   getSellerContactsCount,
 } from '@/services/sellers'
 import { User, Save, Camera, Trash2, Mail, Phone, CheckCircle, AlertCircle } from 'lucide-react'
+import { useI18n } from '@/context/I18nContext'
 
 export default function SellerProfilePage() {
   const { user, refetchProfile, updateAuthEmail } = useAuth()
+  const { t, locale } = useI18n()
   const [profile, setProfile] = useState(null)
   const [stats, setStats] = useState(null)
   const [contacts, setContacts] = useState(0)
@@ -40,11 +42,6 @@ export default function SellerProfilePage() {
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
-    business_contact: '',
-    office_street: '',
-    office_house_number: '',
-    office_postal_code: '',
-    office_city: '',
   })
 
   useEffect(() => {
@@ -68,20 +65,9 @@ export default function SellerProfilePage() {
         code: phone?.phone_country_code ?? '+385',
         number: phone?.phone_number ?? '',
       })
-      // Parse structured address from JSON or legacy string
-      const addr = profileRes.data.office_address
-      let addrObj = { street: '', houseNumber: '', postalCode: '', city: '' }
-      if (addr) {
-        try { addrObj = typeof addr === 'string' ? JSON.parse(addr) : addr } catch { addrObj = { street: addr, houseNumber: '', postalCode: '', city: '' } }
-      }
       setForm({
         first_name: profileRes.data.first_name ?? '',
         last_name: profileRes.data.last_name ?? '',
-        business_contact: profileRes.data.business_contact ?? '',
-        office_street: addrObj.street ?? '',
-        office_house_number: addrObj.houseNumber ?? '',
-        office_postal_code: addrObj.postalCode ?? '',
-        office_city: addrObj.city ?? '',
       })
     }
     if (statsRes.stats) setStats(statsRes.stats)
@@ -99,23 +85,10 @@ export default function SellerProfilePage() {
     setError(null)
     setSuccess(false)
 
-    // Build structured address JSON
-    const hasAddress = form.office_street.trim() || form.office_city.trim()
-    const addressPayload = hasAddress
-      ? JSON.stringify({
-          street: form.office_street.trim(),
-          houseNumber: form.office_house_number.trim(),
-          postalCode: form.office_postal_code.trim(),
-          city: form.office_city.trim(),
-        })
-      : null
-
     // Save profile fields
     const result = await updateUserProfile(user.id, {
       first_name: form.first_name,
       last_name: form.last_name,
-      business_contact: form.business_contact.trim() || null,
-      office_address: addressPayload,
     })
 
     setSaving(false)
@@ -145,7 +118,7 @@ export default function SellerProfilePage() {
     } else {
       setEmailMsg({
         type: 'success',
-        text: 'Link za potvrdu je poslan na novu adresu. Provjerite inbox.',
+        text: t('profile.emailConfirmSent'),
       })
       setEmailEditing(false)
       setNewEmail('')
@@ -166,7 +139,7 @@ export default function SellerProfilePage() {
     if (phoneErr) {
       setPhoneMsg({ type: 'error', text: phoneErr.message })
     } else {
-      setPhoneMsg({ type: 'success', text: 'Telefonski broj je spremljen.' })
+      setPhoneMsg({ type: 'success', text: t('profile.phoneSaved') })
       setPhoneEditing(false)
       setTimeout(() => setPhoneMsg(null), 4000)
     }
@@ -178,11 +151,11 @@ export default function SellerProfilePage() {
     if (!file) return
     // Validate
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Podržani formati: JPEG, PNG, WebP')
+      setError(t('profile.formatError'))
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Maksimalna veličina slike: 5 MB')
+      setError(t('profile.maxSizeError'))
       return
     }
     setAvatarUploading(true)
@@ -210,7 +183,7 @@ export default function SellerProfilePage() {
 
   const fullName = [form.first_name, form.last_name].filter(Boolean).join(' ')
   const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString('hr-HR', { year: 'numeric', month: 'long' })
+    ? new Date(profile.created_at).toLocaleDateString(locale, { year: 'numeric', month: 'long' })
     : null
 
   if (loading) {
@@ -224,8 +197,8 @@ export default function SellerProfilePage() {
   return (
     <div className="container py-10 max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Profil prodavača</h1>
-        <p className="text-sm text-gray-500">Vaši osobni podaci, kontakti i pregled aktivnosti</p>
+        <h1 className="text-3xl font-bold mb-1">{t('profile.sellerTitle')}</h1>
+        <p className="text-sm text-gray-500">{t('profile.sellerSubtitle')}</p>
       </div>
 
       {/* Identity block with avatar */}
@@ -248,7 +221,7 @@ export default function SellerProfilePage() {
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={avatarUploading}
                 className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-gray-700 hover:bg-white"
-                title="Promijeni sliku"
+                title={t('profile.changeAvatar')}
               >
                 <Camera size={12} />
               </button>
@@ -257,7 +230,7 @@ export default function SellerProfilePage() {
                   onClick={handleAvatarRemove}
                   disabled={avatarUploading}
                   className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-red-500 hover:bg-white"
-                  title="Ukloni sliku"
+                  title={t('profile.removeAvatar')}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -272,14 +245,14 @@ export default function SellerProfilePage() {
             />
           </div>
           <div className="min-w-0">
-            <div className="font-semibold text-lg">{fullName || 'Korisnik'}</div>
+            <div className="font-semibold text-lg">{fullName || t('common.user')}</div>
             <div className="text-sm text-gray-500">{user?.email}</div>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-              <span className="text-orange-600 font-medium">Prodavač</span>
+              <span className="text-orange-600 font-medium">{t('roles.seller')}</span>
               {memberSince && (
                 <>
                   <span>·</span>
-                  <span>Član od {memberSince}</span>
+                  <span>{t('common.memberSince', { date: memberSince })}</span>
                 </>
               )}
             </div>
@@ -292,98 +265,35 @@ export default function SellerProfilePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="card p-4 text-center">
             <div className="text-xl font-bold">{stats.active}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Aktivnih</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t('profile.statsActive')}</div>
           </div>
           <div className="card p-4 text-center">
             <div className="text-xl font-bold">{stats.sold + (stats.rented ?? 0)}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Završeno</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t('profile.statsCompleted')}</div>
           </div>
           <div className="card p-4 text-center">
             <div className="text-xl font-bold">{contacts}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Kontakata</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t('profile.statsContacts')}</div>
           </div>
           <div className="card p-4 text-center">
             <div className="text-xl font-bold">{stats.totalListings}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Ukupno oglasa</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t('profile.statsTotal')}</div>
           </div>
         </div>
       )}
 
       {/* Editable personal info + contact form */}
       <div className="card p-6 mb-6">
-        <h2 className="text-sm font-semibold mb-4">Osobni podaci i kontakt</h2>
+        <h2 className="text-sm font-semibold mb-4">{t('profile.personalDataAndContact')}</h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Ime</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('profile.firstName')}</label>
               <input name="first_name" type="text" value={form.first_name} onChange={handleChange} className="input" placeholder="Marko" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prezime</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('profile.lastName')}</label>
               <input name="last_name" type="text" value={form.last_name} onChange={handleChange} className="input" placeholder="Marković" />
-            </div>
-            {/* Business contact */}
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Poslovni kontakt
-              </label>
-              <input
-                name="business_contact"
-                type="text"
-                value={form.business_contact}
-                onChange={handleChange}
-                className="input"
-                placeholder="npr. web stranica agencije, poslovni telefon, naziv tvrtke…"
-              />
-              <p className="text-xs text-gray-400 mt-1">Dodatna kontakt informacija za kupce (opcionalno).</p>
-            </div>
-
-            {/* Structured address */}
-            <div className="col-span-2 border-t border-border pt-4 mt-1">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">Adresa</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <input
-                    name="office_street"
-                    type="text"
-                    value={form.office_street}
-                    onChange={handleChange}
-                    className="input"
-                    placeholder="Ulica"
-                  />
-                </div>
-                <div>
-                  <input
-                    name="office_house_number"
-                    type="text"
-                    value={form.office_house_number}
-                    onChange={handleChange}
-                    className="input"
-                    placeholder="Kućni broj"
-                  />
-                </div>
-                <div>
-                  <input
-                    name="office_postal_code"
-                    type="text"
-                    value={form.office_postal_code}
-                    onChange={handleChange}
-                    className="input"
-                    placeholder="Poštanski broj"
-                  />
-                </div>
-                <div>
-                  <input
-                    name="office_city"
-                    type="text"
-                    value={form.office_city}
-                    onChange={handleChange}
-                    className="input"
-                    placeholder="Grad"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5">Adresa poslovnog prostora ili ureda (opcionalno).</p>
             </div>
           </div>
 
@@ -393,7 +303,7 @@ export default function SellerProfilePage() {
 
           {success && (
             <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
-              Profil je uspješno spremljen!
+              {t('profile.profileSaved')}
             </div>
           )}
 
@@ -401,12 +311,12 @@ export default function SellerProfilePage() {
             {saving ? (
               <span className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Spremanje…
+                {t('common.saving')}
               </span>
             ) : (
               <>
                 <Save size={14} />
-                Spremi promjene
+                {t('profile.saveChanges')}
               </>
             )}
           </button>
@@ -417,14 +327,14 @@ export default function SellerProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Mail size={14} className="text-gray-400" />
-          E-mail adresa
+          {t('profile.emailSection')}
         </h2>
 
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">{user?.email}</div>
             <p className="text-xs text-gray-400 mt-0.5">
-              Promjena zahtijeva potvrdu na novoj adresi.
+              {t('profile.emailChangeNote')}
             </p>
           </div>
           {!emailEditing && (
@@ -436,7 +346,7 @@ export default function SellerProfilePage() {
               }}
               className="btn btn-secondary text-xs flex-shrink-0"
             >
-              Promijeni
+              {t('common.change')}
             </button>
           )}
         </div>
@@ -457,7 +367,7 @@ export default function SellerProfilePage() {
                 disabled={emailSaving || !newEmail.trim() || newEmail === user?.email}
                 className="btn btn-primary text-xs"
               >
-                {emailSaving ? 'Slanje…' : 'Pošalji potvrdu'}
+                {emailSaving ? t('common.saving') : t('profile.sendConfirm')}
               </button>
               <button
                 type="button"
@@ -467,7 +377,7 @@ export default function SellerProfilePage() {
                 }}
                 className="btn btn-secondary text-xs"
               >
-                Odustani
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -495,7 +405,7 @@ export default function SellerProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Phone size={14} className="text-gray-400" />
-          Telefonski broj
+          {t('profile.phoneSection')}
         </h2>
 
         <div className="flex items-center justify-between gap-4">
@@ -503,7 +413,7 @@ export default function SellerProfilePage() {
             <div className="text-sm font-medium truncate">
               {phoneForm.number
                 ? `${phoneForm.code} ${phoneForm.number}`
-                : <span className="italic text-gray-400">Nije dodano</span>}
+                : <span className="italic text-gray-400">{t('profile.notAdded')}</span>}
             </div>
           </div>
           {!phoneEditing && (
@@ -511,7 +421,7 @@ export default function SellerProfilePage() {
               onClick={() => { setPhoneEditing(true); setPhoneMsg(null) }}
               className="btn btn-secondary text-xs flex-shrink-0"
             >
-              {phoneForm.number ? 'Promijeni' : 'Dodaj'}
+              {phoneForm.number ? t('common.change') : t('common.add')}
             </button>
           )}
         </div>
@@ -541,14 +451,14 @@ export default function SellerProfilePage() {
                 disabled={phoneSaving || !phoneForm.number.trim()}
                 className="btn btn-primary text-xs"
               >
-                {phoneSaving ? 'Spremanje…' : 'Spremi'}
+                {phoneSaving ? t('common.saving') : t('common.save')}
               </button>
               <button
                 type="button"
                 onClick={() => setPhoneEditing(false)}
                 className="btn btn-secondary text-xs"
               >
-                Odustani
+                {t('common.cancel')}
               </button>
             </div>
           </form>

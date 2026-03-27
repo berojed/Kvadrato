@@ -1,29 +1,25 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import { getRoles } from '@/services/sellers'
 import { Eye, EyeOff, Home, Search } from 'lucide-react'
 
-const ROLES = [
-  {
-    id: 1,
-    code: 'BUYER',
-    label: 'Tražim nekretninu',
-    description: 'Pregledavam oglase, spremlam favorite i zakazujem posjete',
-    icon: Search,
-  },
-  {
-    id: 2,
-    code: 'SELLER',
-    label: 'Prodajem nekretninu',
-    description: 'Objavljujem oglase i upravljam upitima kupaca',
-    icon: Home,
-  },
+const ROLES_BASE = [
+  { id: 1, code: 'BUYER', labelKey: 'auth.roleBuyer', descKey: 'auth.roleBuyerDesc', icon: Search },
+  { id: 2, code: 'SELLER', labelKey: 'auth.roleSeller', descKey: 'auth.roleSellerDesc', icon: Home },
 ]
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
+  const { t } = useI18n()
+
+  const ROLES = ROLES_BASE.map((r) => ({
+    ...r,
+    label: t(r.labelKey),
+    description: t(r.descKey),
+  }))
 
   const [step, setStep] = useState(1)
   const [roleMap, setRoleMap] = useState({})
@@ -66,11 +62,11 @@ export default function RegisterPage() {
     setError(null)
 
     if (form.password !== form.confirmPassword) {
-      setError('Lozinke se ne podudaraju.')
+      setError(t('auth.passwordsNoMatch'))
       return
     }
     if (form.password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 znakova.')
+      setError(t('auth.passwordTooShort'))
       return
     }
 
@@ -91,12 +87,12 @@ export default function RegisterPage() {
       if (import.meta.env.DEV) console.error('[RegisterPage] Registracija neuspješna:', err.message)
       const msg =
         err.message.includes('already registered')
-          ? 'Ovaj email je već registriran. Pokušaj se prijaviti.'
+          ? t('auth.alreadyRegistered')
           : err.message.includes('rate')
-            ? 'Previše pokušaja. Pričekaj par minuta pa probaj ponovo.'
+            ? t('auth.tooManyRegAttempts')
             : err.message.includes('valid email')
-              ? 'Unesi ispravnu email adresu.'
-              : `Greška: ${err.message}`
+              ? t('auth.invalidEmail')
+              : `${t('common.error')}: ${err.message}`
       setError(msg)
       return
     }
@@ -119,8 +115,8 @@ export default function RegisterPage() {
       return (
         <div className="min-h-[80vh] flex items-center justify-center p-4">
           <div className="text-center max-w-sm">
-            <h2 className="text-xl font-bold mb-2">Račun kreiran!</h2>
-            <p className="text-sm text-gray-500">Preusmjeravanje...</p>
+            <h2 className="text-xl font-bold mb-2">{t('auth.accountCreated')}</h2>
+            <p className="text-sm text-gray-500">{t('common.redirecting')}</p>
           </div>
         </div>
       )
@@ -130,14 +126,14 @@ export default function RegisterPage() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
-          <h2 className="text-xl font-bold mb-2">Provjeri svoj e-mail</h2>
+          <h2 className="text-xl font-bold mb-2">{t('auth.checkEmail')}</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Poslali smo link za potvrdu na{' '}
+            {t('auth.confirmEmailSent')}{' '}
             <strong className="text-black">{form.email}</strong>.
-            Provjeri inbox (i spam folder), pa se prijavi.
+            {' '}{t('auth.checkInbox')}
           </p>
           <Link to="/auth/login" className="btn btn-primary">
-            Idi na prijavu
+            {t('auth.goToLogin')}
           </Link>
         </div>
       </div>
@@ -151,10 +147,10 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           <div className="mb-8">
             <Link to="/" className="text-sm text-gray-500 hover:text-black transition-colors">
-              ← Kvadrato
+              {t('auth.backToKvadrato')}
             </Link>
-            <h1 className="text-2xl font-bold mt-6 mb-1">Kreiraj račun</h1>
-            <p className="text-sm text-gray-500">Kako ćeš koristiti Kvadrato?</p>
+            <h1 className="text-2xl font-bold mt-6 mb-1">{t('auth.createAccount')}</h1>
+            <p className="text-sm text-gray-500">{t('auth.howUseKvadrato')}</p>
           </div>
 
           <div className="space-y-3">
@@ -178,9 +174,9 @@ export default function RegisterPage() {
           </div>
 
           <p className="text-sm text-center text-gray-500 mt-6">
-            Već imaš račun?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link to="/auth/login" className="text-black font-medium hover:underline">
-              Prijavi se
+              {t('auth.signInButton')}
             </Link>
           </p>
         </div>
@@ -197,33 +193,33 @@ export default function RegisterPage() {
             onClick={() => setStep(1)}
             className="text-sm text-gray-500 hover:text-black transition-colors"
           >
-            ← Natrag
+            {t('auth.backStep')}
           </button>
-          <h1 className="text-2xl font-bold mt-6 mb-2">Kreiraj račun</h1>
+          <h1 className="text-2xl font-bold mt-6 mb-2">{t('auth.createAccount')}</h1>
           <span className="badge badge-muted">{selectedRole?.label}</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Ime</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.firstName')}</label>
               <input name="firstName" type="text" required value={form.firstName} onChange={handleChange} className="input" placeholder="Ana" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Prezime</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.lastName')}</label>
               <input name="lastName" type="text" required value={form.lastName} onChange={handleChange} className="input" placeholder="Horvat" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">E-mail</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.email')}</label>
             <input name="email" type="email" required autoComplete="email" value={form.email} onChange={handleChange} className="input" placeholder="ime@email.com" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Lozinka</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.password')}</label>
             <div className="relative">
-              <input name="password" type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={form.password} onChange={handleChange} className="input pr-10" placeholder="Min. 6 znakova" />
+              <input name="password" type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={form.password} onChange={handleChange} className="input pr-10" placeholder={t('auth.minChars')} />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -231,7 +227,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Ponovi lozinku</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.confirmPassword')}</label>
             <input name="confirmPassword" type={showPassword ? 'text' : 'password'} required autoComplete="new-password" value={form.confirmPassword} onChange={handleChange} className="input" placeholder="••••••••" />
           </div>
 
@@ -243,18 +239,18 @@ export default function RegisterPage() {
             {loading ? (
               <span className="flex items-center gap-2 justify-center">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Kreiranje računa…
+                {t('auth.creatingAccount')}
               </span>
             ) : (
-              'Registriraj se'
+              t('auth.registerButton')
             )}
           </button>
         </form>
 
         <p className="text-sm text-center text-gray-500 mt-6">
-          Već imaš račun?{' '}
+          {t('auth.hasAccount')}{' '}
           <Link to="/auth/login" className="text-black font-medium hover:underline">
-            Prijavi se
+            {t('auth.signInButton')}
           </Link>
         </p>
       </div>

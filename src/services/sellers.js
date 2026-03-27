@@ -82,7 +82,7 @@ export async function upsertPhoneNumber(userId, countryCode, phoneNumber) {
     .select('phone_id')
     .eq('user_id', userId)
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (existing?.phone_id) {
     // Update existing
@@ -196,41 +196,6 @@ export async function updateUserRole(userId, roleId) {
   }
 
   return { data, error }
-}
-
-/**
- * Broji koliko su puta oglasi prodavača dodani u omiljene.
- * Dva koraka: dohvati listing_id-eve prodavača, zatim broji favorite.
- */
-export async function getSellerFavoritesCount(sellerId) {
-  if (import.meta.env.DEV) console.log('[sellers] getSellerFavoritesCount:', sellerId)
-
-  // 1. Dohvati sve listing ID-eve prodavača
-  const { data: listings, error: listErr } = await supabase
-    .from('listing')
-    .select('listing_id')
-    .eq('seller_id', sellerId)
-
-  if (listErr) {
-    if (import.meta.env.DEV) console.error('[sellers] getSellerFavoritesCount listings greška:', listErr.message)
-    return { count: 0, error: listErr }
-  }
-
-  const ids = (listings ?? []).map((l) => l.listing_id)
-  if (ids.length === 0) return { count: 0, error: null }
-
-  // 2. Broji favorite za te listing-e
-  const { count, error } = await supabase
-    .from('favorite')
-    .select('*', { count: 'exact', head: true })
-    .in('listing_id', ids)
-
-  if (error) {
-    if (import.meta.env.DEV) console.error('[sellers] getSellerFavoritesCount greška:', error.message)
-    return { count: 0, error }
-  }
-
-  return { count: count ?? 0, error: null }
 }
 
 /**

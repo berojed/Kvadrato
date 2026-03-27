@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn, signOut } = useAuth()
+  const { t } = useI18n()
 
   const from = location.state?.from?.pathname ?? '/'
 
@@ -34,29 +36,37 @@ export default function LoginPage() {
       // Korisniku prilagođene poruke
       const msg =
         err.message === 'Invalid login credentials'
-          ? 'Neispravni podaci za prijavu. Provjeri email i lozinku.'
+          ? t('auth.invalidCredentials')
           : err.message === 'Email not confirmed'
-          ? 'Email adresa nije potvrđena. Provjeri inbox za link za potvrdu.'
+          ? t('auth.emailNotConfirmed')
           : err.message.includes('rate')
-          ? 'Previše pokušaja prijave. Pričekaj par minuta.'
-          : `Greška: ${err.message}`
+          ? t('auth.tooManyAttempts')
+          : `${t('common.error')}: ${err.message}`
 
       setError(msg)
       return
     }
 
-    // ── Role validation ──────────────────────────────────────────────────────
-    // Compare the intent the user selected against the actual role stored in DB.
-    // If they mismatch, sign out immediately and show a clear error — the user
-    // needs to pick the correct role or use the right account.
+    // ── Profile/role validation ─────────────────────────────────────────────
+    // A valid profile with a role is required for the app to function.
+    // If missing, sign out immediately — this is a data integrity issue.
     const actualRole = profile?.role?.role_code
-    if (actualRole && actualRole !== roleIntent) {
+    if (!actualRole) {
+      if (import.meta.env.DEV) console.error('[LoginPage] Missing profile or role after sign-in')
+      await signOut()
+      setError(t('auth.profileNotFound'))
+      return
+    }
+
+    // Compare the intent the user selected against the actual role stored in DB.
+    // If they mismatch, sign out immediately and show a clear error.
+    if (actualRole !== roleIntent) {
       if (import.meta.env.DEV) console.warn('[LoginPage] Role mismatch — intent:', roleIntent, '| actual:', actualRole)
       await signOut()
       setError(
         roleIntent === 'SELLER'
-          ? 'Ovaj račun je registriran kao Kupac. Odaberi "Kupac" za prijavu ili koristi prodavački račun.'
-          : 'Ovaj račun je registriran kao Prodavač. Odaberi "Prodavač" za prijavu ili koristi kupački račun.'
+          ? t('auth.roleMismatchBuyer')
+          : t('auth.roleMismatchSeller')
       )
       return
     }
@@ -79,20 +89,20 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8">
           <Link to="/" className="text-sm text-gray-500 hover:text-black transition-colors">
-            ← Kvadrato
+            {t('auth.backToKvadrato')}
           </Link>
-          <h1 className="text-2xl font-bold mt-6 mb-1">Dobrodošao natrag</h1>
-          <p className="text-sm text-gray-500">Prijavi se na svoj račun</p>
+          <h1 className="text-2xl font-bold mt-6 mb-1">{t('auth.welcomeBack')}</h1>
+          <p className="text-sm text-gray-500">{t('auth.signInToAccount')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Role intent selector — routing hint only, does not change permissions */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Prijavljujem se kao</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.signInAs')}</label>
             <div className="inline-flex w-full rounded-lg bg-gray-100 p-1">
               {[
-                { value: 'BUYER', label: 'Kupac' },
-                { value: 'SELLER', label: 'Prodavač' },
+                { value: 'BUYER', label: t('roles.buyer') },
+                { value: 'SELLER', label: t('roles.seller') },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -109,11 +119,11 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Ovo ne utječe na dozvole računa.</p>
+            <p className="text-xs text-gray-400 mt-1">{t('auth.roleHint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">E-mail</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.email')}</label>
             <input
               type="email"
               required
@@ -126,7 +136,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Lozinka</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">{t('auth.password')}</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -157,18 +167,18 @@ export default function LoginPage() {
             {loading ? (
               <span className="flex items-center gap-2 justify-center">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Prijavljivanje…
+                {t('auth.signingIn')}
               </span>
             ) : (
-              'Prijavi se'
+              t('auth.signInButton')
             )}
           </button>
         </form>
 
         <p className="text-sm text-center text-gray-500 mt-6">
-          Nemaš račun?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/auth/register" className="text-black font-medium hover:underline">
-            Registriraj se
+            {t('nav.register')}
           </Link>
         </p>
       </div>

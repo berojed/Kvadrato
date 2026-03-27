@@ -167,7 +167,7 @@ export async function getListingById(listingId) {
         location(city, state_region, country, postal_code),
         property_address(street_address, floor_number),
         image(image_id, url, caption, is_primary, sort_order),
-        model3d(model_id, url, description),
+        model3d(model_id, url),
         property_details(
           total_floors, year_built,
           property_condition(condition_name),
@@ -276,6 +276,11 @@ export async function createPropertyAndListing({
     return { data: null, error: { message: 'Potrebno je najmanje 3 slike nekretnine.' } }
   }
 
+  // Validate required property details
+  if (!propertyDetails?.yearBuilt) {
+    return { data: null, error: { message: 'Godina izgradnje je obavezna.' } }
+  }
+
   // At the start, look up the ACTIVE status from DB
   const { data: statusRow } = await supabase
     .from('listing_status').select('status_id').eq('status_code', 'ACTIVE').single()
@@ -343,7 +348,7 @@ export async function createPropertyAndListing({
     return { data: null, error: listErr }
   }
 
-  // 4. Insert property_details (1:1 with property)
+  // 4. Insert property_details (1:1 with property) — MANDATORY
   if (propertyDetails) {
     const { error: detErr } = await supabase
       .from('property_details')
@@ -355,20 +360,31 @@ export async function createPropertyAndListing({
         heating_id: propertyDetails.heatingId || null,
         furnishing_id: propertyDetails.furnishingId || null,
       })
-    if (detErr && import.meta.env.DEV) {
-      console.warn('[properties] Greška dodavanja property_details:', detErr.message)
+    if (detErr) {
+      if (import.meta.env.DEV) console.error('[properties] Greška dodavanja property_details:', detErr.message)
+      // Rollback: delete listing, property, address
+      await supabase.from('listing').delete().eq('listing_id', listing.listing_id)
+      await supabase.from('property').delete().eq('property_id', property.property_id)
+      await supabase.from('property_address').delete().eq('address_id', address.address_id)
+      return { data: null, error: { message: 'Greška pri spremanju detalja nekretnine: ' + detErr.message } }
     }
   }
 
-  // 5. Insert property_amenity rows
+  // 5. Insert property_amenity rows — MANDATORY when selected
   if (amenityIds.length > 0) {
     const amenityRows = amenityIds.map((aid) => ({
       property_id: property.property_id,
       amenity_id: aid,
     }))
     const { error: amErr } = await supabase.from('property_amenity').insert(amenityRows)
-    if (amErr && import.meta.env.DEV) {
-      console.warn('[properties] Greška dodavanja amenities:', amErr.message)
+    if (amErr) {
+      if (import.meta.env.DEV) console.error('[properties] Greška dodavanja amenities:', amErr.message)
+      // Rollback: delete details, listing, property, address
+      await supabase.from('property_details').delete().eq('property_id', property.property_id)
+      await supabase.from('listing').delete().eq('listing_id', listing.listing_id)
+      await supabase.from('property').delete().eq('property_id', property.property_id)
+      await supabase.from('property_address').delete().eq('address_id', address.address_id)
+      return { data: null, error: { message: 'Greška pri spremanju pogodnosti: ' + amErr.message } }
     }
   }
 
@@ -419,9 +435,10 @@ export async function createPropertyAndListing({
 export async function deleteListing(listingId) {
   if (import.meta.env.DEV) console.log('[properties] deleteListing:', listingId)
 
+  // Fetch property_id and address_id before delete — needed for cleanup
   const { data: listing } = await supabase
     .from('listing')
-    .select('property_id')
+    .select('property_id, property:property_id(address_id)')
     .eq('listing_id', listingId)
     .single()
 
@@ -436,6 +453,29 @@ export async function deleteListing(listingId) {
   }
 
   if (listing?.property_id) {
+    // Clean up model3d, property_details, property_amenity rows (best-effort)
+    // NOTE: if DB has CASCADE on property FK, these are redundant but safe
+    await supabase.from('model3d').delete().eq('property_id', listing.property_id)
+    await supabase.from('property_details').delete().eq('property_id', listing.property_id)
+    await supabase.from('property_amenity').delete().eq('property_id', listing.property_id)
+    await supabase.from('image').delete().eq('property_id', listing.property_id)
+
+    // Best-effort storage cleanup for images and 3D model
+    try {
+      const { data: imgFiles } = await supabase.storage
+        .from('property-pictures')
+        .list(`properties/${listing.property_id}`)
+      if (imgFiles?.length) {
+        const paths = imgFiles.map((f) => `properties/${listing.property_id}/${f.name}`)
+        await supabase.storage.from('property-pictures').remove(paths)
+      }
+    } catch { /* best-effort */ }
+    try {
+      await supabase.storage.from('property-models').remove([`properties/${listing.property_id}/model.glb`])
+    } catch { /* best-effort */ }
+
+    const addressId = listing.property?.address_id
+
     const { error: propErr } = await supabase
       .from('property')
       .delete()
@@ -443,6 +483,11 @@ export async function deleteListing(listingId) {
 
     if (propErr && import.meta.env.DEV) {
       console.warn('[properties] Greška brisanja nekretnine:', propErr.message)
+    }
+
+    // Clean up orphaned property_address
+    if (addressId) {
+      await supabase.from('property_address').delete().eq('address_id', addressId)
     }
   }
 
@@ -461,10 +506,6 @@ export async function getPropertyTypes() {
   return { data: data ?? [], error }
 }
 
-export async function getLocations() {
-  const { data, error } = await supabase.from('location').select('*')
-  return { data: data ?? [], error }
-}
 
 export async function getCurrencies() {
   const { data, error } = await supabase.from('currency').select('*')
@@ -493,22 +534,25 @@ export async function getAmenities() {
 
 /**
  * Find or create a location row matching the given metadata.
- * Matches on (city, country) — if found, returns existing location_id.
- * Otherwise inserts a new row.
+ * Matches on (city, state_region, postal_code, country) for precise deduplication.
+ * Falls back to (city, country) if postal_code or state_region are missing.
  */
 export async function resolveLocationId({ city, stateRegion, postalCode, country = 'Hrvatska' }) {
-  if (import.meta.env.DEV) console.log('[properties] resolveLocationId:', city, stateRegion)
+  if (import.meta.env.DEV) console.log('[properties] resolveLocationId:', city, stateRegion, postalCode)
 
   if (!city) return { locationId: null, error: { message: 'Grad je obavezan.' } }
 
-  // Try to find existing
-  const { data: existing } = await supabase
+  // Try to find existing with full signature
+  let query = supabase
     .from('location')
     .select('location_id')
     .eq('city', city)
     .eq('country', country)
-    .limit(1)
-    .maybeSingle()
+
+  if (postalCode) query = query.eq('postal_code', postalCode)
+  if (stateRegion) query = query.eq('state_region', stateRegion)
+
+  const { data: existing } = await query.limit(1).maybeSingle()
 
   if (existing?.location_id) {
     return { locationId: existing.location_id, error: null }
@@ -541,6 +585,7 @@ export async function getListingStatuses() {
   const { data, error } = await supabase
     .from('listing_status')
     .select('status_id, status_code, description')
+    .neq('status_code', 'EXPIRED')
     .order('status_id')
   return { data: data ?? [], error }
 }
@@ -612,7 +657,7 @@ export async function getSellerListingById(listingId, sellerId) {
         location(city, state_region, country, postal_code),
         property_address(street_address, floor_number),
         image(image_id, url, caption, is_primary, sort_order),
-        model3d(model_id, url, description),
+        model3d(model_id, url),
         property_details(
           total_floors, year_built,
           property_condition(condition_name),
@@ -711,6 +756,11 @@ export async function updatePropertyAndListing({
 }) {
   if (import.meta.env.DEV) console.log('[properties] updatePropertyAndListing:', listingId)
 
+  // Validate required property details
+  if (!propertyDetails?.yearBuilt) {
+    return { error: { message: 'Godina izgradnje je obavezna.' } }
+  }
+
   // 1. Ažuriraj adresu
   if (addressId) {
     const { error: addrErr } = await supabase
@@ -761,7 +811,7 @@ export async function updatePropertyAndListing({
     return { error: listErr }
   }
 
-  // 4. Upsert property_details
+  // 4. Upsert property_details — MANDATORY
   if (propertyDetails && propertyId) {
     const detailsPayload = {
       property_id: propertyId,
@@ -774,21 +824,27 @@ export async function updatePropertyAndListing({
     const { error: detErr } = await supabase
       .from('property_details')
       .upsert(detailsPayload, { onConflict: 'property_id' })
-    if (detErr && import.meta.env.DEV) {
-      console.warn('[properties] Greška upsert property_details:', detErr.message)
+    if (detErr) {
+      if (import.meta.env.DEV) console.error('[properties] Greška upsert property_details:', detErr.message)
+      return { error: { message: 'Greška pri spremanju detalja nekretnine: ' + detErr.message } }
     }
   }
 
-  // 5. Replace property_amenity rows
+  // 5. Replace property_amenity rows — MANDATORY when provided
   if (amenityIds !== null && propertyId) {
     // Delete existing
-    await supabase.from('property_amenity').delete().eq('property_id', propertyId)
+    const { error: delAmErr } = await supabase.from('property_amenity').delete().eq('property_id', propertyId)
+    if (delAmErr) {
+      if (import.meta.env.DEV) console.error('[properties] Greška brisanja starih amenities:', delAmErr.message)
+      return { error: { message: 'Greška pri ažuriranju pogodnosti: ' + delAmErr.message } }
+    }
     // Insert new
     if (amenityIds.length > 0) {
       const rows = amenityIds.map((aid) => ({ property_id: propertyId, amenity_id: aid }))
       const { error: amErr } = await supabase.from('property_amenity').insert(rows)
-      if (amErr && import.meta.env.DEV) {
-        console.warn('[properties] Greška zamjene amenities:', amErr.message)
+      if (amErr) {
+        if (import.meta.env.DEV) console.error('[properties] Greška zamjene amenities:', amErr.message)
+        return { error: { message: 'Greška pri spremanju pogodnosti: ' + amErr.message } }
       }
     }
   }
@@ -799,6 +855,7 @@ export async function updatePropertyAndListing({
 /**
  * Uploads a 3D model file to Supabase Storage and upserts the model3d row.
  * Enforces 1:1 per property — existing model at the same path is overwritten.
+ * Clears saved room presets because coordinates are tied to the previous model geometry.
  */
 export async function upsertPropertyModel(propertyId, file) {
   if (import.meta.env.DEV) console.log('[properties] upsertPropertyModel:', propertyId)
@@ -831,17 +888,26 @@ export async function upsertPropertyModel(propertyId, file) {
     console.error('[properties] model3d upsert greška:', error.message)
   }
 
+  // Clear saved room presets — they are tied to the previous model's geometry
+  if (!error) {
+    await supabase.from('property_3d_room').delete().eq('property_id', propertyId)
+  }
+
   return { data, error }
 }
 
 /**
  * Removes the 3D model for a property from Storage and the model3d table.
+ * Also clears all saved room presets since they have no model to reference.
  */
 export async function removePropertyModel(propertyId) {
   if (import.meta.env.DEV) console.log('[properties] removePropertyModel:', propertyId)
 
   const path = `properties/${propertyId}/model.glb`
   await supabase.storage.from('property-models').remove([path])
+
+  // Clear room presets first (they reference the model being removed)
+  await supabase.from('property_3d_room').delete().eq('property_id', propertyId)
 
   const { error } = await supabase
     .from('model3d')
@@ -1010,32 +1076,3 @@ export async function removePropertyImage(imageId) {
   return { error: null }
 }
 
-/**
- * Lightweight autocomplete suggestions from existing location and property_address data.
- * Returns up to 6 deduplicated suggestions typed as { type, label, sublabel }.
- */
-export async function getSearchSuggestions(query) {
-  if (!query || query.trim().length < 2) return { data: [], error: null }
-
-  const q = query.trim()
-
-  const { data: locData, error } = await supabase
-    .from('location')
-    .select('city, state_region')
-    .or(`city.ilike.%${q}%,state_region.ilike.%${q}%`)
-    .limit(6)
-
-  const suggestions = []
-  const seen = new Set()
-
-  for (const row of locData ?? []) {
-    if (row.city && !seen.has(row.city)) {
-      suggestions.push({ type: 'city', label: row.city, sublabel: row.state_region ?? null })
-      seen.add(row.city)
-    }
-  }
-
-  if (import.meta.env.DEV) console.log('[properties] getSearchSuggestions:', suggestions.length, 'za:', q)
-
-  return { data: suggestions.slice(0, 6), error }
-}

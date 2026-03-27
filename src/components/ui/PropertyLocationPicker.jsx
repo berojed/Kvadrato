@@ -4,6 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapPin } from 'lucide-react'
 import { geocodeAddress } from '@/lib/geocoding'
+import { useI18n } from '@/context/I18nContext'
 
 // Fix Leaflet default marker icon (broken by bundlers)
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
@@ -52,7 +53,7 @@ function GeocodeCenterer({ address, city }) {
       if (result) {
         map.setView([result.lat, result.lng], 15)
       }
-    }, 600)
+    }, 1100)
 
     return () => clearTimeout(timerRef.current)
   }, [address, city, map])
@@ -146,6 +147,7 @@ export default function PropertyLocationPicker({
   readOnly = false,
   height = '288px',
 }) {
+  const { t } = useI18n()
   const hasCoords = latitude != null && longitude != null
   const center = hasCoords ? [latitude, longitude] : CROATIA_CENTER
   const zoom = hasCoords ? MARKER_ZOOM : DEFAULT_ZOOM
@@ -173,7 +175,9 @@ export default function PropertyLocationPicker({
         ) : (
           <>
             <MapClickHandler onLocationSelect={onLocationSelect} />
-            <GeocodeCenterer address={address} city={city} />
+            {/* Only geocode from text when no marker exists — avoids conflict
+                with coordinates supplied by autocomplete or map click */}
+            {!hasCoords && <GeocodeCenterer address={address} city={city} />}
             {hasCoords && (
               <DraggableMarker lat={latitude} lng={longitude} onDragEnd={onLocationSelect} />
             )}
@@ -185,9 +189,9 @@ export default function PropertyLocationPicker({
         <div className="flex items-center gap-1.5 text-xs text-gray-500">
           <MapPin size={12} />
           {hasCoords ? (
-            <span>Odabrana lokacija: {latitude.toFixed(5)}, {longitude.toFixed(5)}</span>
+            <span>{t('common.selectedLocation')}: {latitude.toFixed(5)}, {longitude.toFixed(5)}</span>
           ) : (
-            <span>Kliknite na kartu za odabir točne lokacije nekretnine</span>
+            <span>{t('common.clickMapToSelect')}</span>
           )}
         </div>
       )}

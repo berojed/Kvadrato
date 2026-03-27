@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import ProtectedRoute from '@/components/ui/ProtectedRoute'
@@ -22,14 +23,16 @@ import SellerSettingsPage from '@/pages/seller/SellerSettingsPage'
 import SellerViewingsPage from '@/pages/seller/SellerViewingsPage'
 import AddPropertyPage from '@/pages/seller/AddPropertyPage'
 import SellerPropertyDetailPage from '@/pages/seller/SellerPropertyDetailPage'
+import Seller3DConfigPage from '@/pages/seller/Seller3DConfigPage'
 
 // 404
 function NotFoundPage() {
+  const { t } = useI18n()
   return (
     <div className="container py-24 text-center">
       <div className="text-5xl font-bold mb-4">404</div>
-      <p className="text-gray-500 mb-6">Stranica nije pronađena.</p>
-      <Link to="/" className="btn btn-secondary">← Početna</Link>
+      <p className="text-gray-500 mb-6">{t('errors.notFound')}</p>
+      <Link to="/" className="btn btn-secondary">{t('errors.goHome')}</Link>
     </div>
   )
 }
@@ -156,6 +159,14 @@ export default function App() {
                 element={
                   <ProtectedRoute role="SELLER">
                     <AddPropertyPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/3d-config/:id"
+                element={
+                  <ProtectedRoute role="SELLER">
+                    <Seller3DConfigPage />
                   </ProtectedRoute>
                 }
               />

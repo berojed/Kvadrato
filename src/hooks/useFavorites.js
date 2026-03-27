@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getFavorites, addFavorite, removeFavorite, isFavorite } from '@/services/favorites'
+import { getFavorites, addFavorite, removeFavorite } from '@/services/favorites'
 import { useAuth } from '@/context/AuthContext'
 
 /**

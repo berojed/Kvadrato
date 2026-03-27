@@ -2,11 +2,12 @@ import { useState, useEffect, lazy, Suspense, Component } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Bed, Bath, Maximize2, MapPin, Share2, ChevronLeft,
-  ChevronRight, ArrowLeft, Map, Box, Edit2
+  ChevronRight, ArrowLeft, Map, Box, Edit2, Settings2
 } from 'lucide-react'
 import { getSellerListingById, getListingStatuses, updateListingStatus } from '@/services/properties'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import PropertyLocationPicker from '@/components/ui/PropertyLocationPicker'
 
 const Property3DViewerModal = lazy(() => import('@/components/ui/Property3DViewerModal'))
@@ -28,9 +29,9 @@ class Viewer3DErrorBoundary extends Component {
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/80" onClick={this.props.onClose} />
           <div className="relative bg-gray-950 rounded-xl p-10 text-center z-10">
-            <p className="text-white font-semibold mb-2">3D preglednik nije dostupan</p>
-            <p className="text-sm text-gray-400 mb-4">Vaš preglednik ne podržava WebGL.</p>
-            <button onClick={this.props.onClose} className="btn btn-secondary text-sm">Zatvori</button>
+            <p className="text-white font-semibold mb-2">3D viewer unavailable</p>
+            <p className="text-sm text-gray-400 mb-4">WebGL not supported.</p>
+            <button onClick={this.props.onClose} className="btn btn-secondary text-sm">Close</button>
           </div>
         </div>
       )
@@ -39,22 +40,10 @@ class Viewer3DErrorBoundary extends Component {
   }
 }
 
-const PROPERTY_TYPE_LABELS = {
-  apartment: 'Stan', house: 'Kuća', commercial: 'Poslovni prostor',
-  land: 'Zemljište', garage: 'Garaža',
-}
-
-const STATUS_LABELS = {
-  ACTIVE: 'Aktivan',
-  INACTIVE: 'Neaktivan',
-  SOLD: 'Prodano',
-  RENTED: 'Iznajmljeno',
-  EXPIRED: 'Isteklo',
-}
-
 export default function SellerPropertyDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
+  const { t, locale } = useI18n()
 
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -95,7 +84,7 @@ export default function SellerPropertyDetailPage() {
     })
     setStatusUpdating(false)
     if (err) {
-      alert('Greška: ' + (err.message || 'Neuspješna promjena statusa.'))
+      alert(t('errors.generic') + ': ' + (err.message || t('seller.statusChangeError')))
     } else if (data) {
       setListing((prev) => ({
         ...prev,
@@ -116,9 +105,9 @@ export default function SellerPropertyDetailPage() {
   if (error || !listing) {
     return (
       <div className="container py-20 text-center">
-        <h2 className="text-xl font-semibold mb-2">Oglas nije pronađen</h2>
-        <p className="text-gray-500 mb-6 text-sm">{error || 'Oglas ne postoji ili nemate pristup.'}</p>
-        <Link to="/seller/dashboard" className="btn btn-secondary">← Natrag na moje nekretnine</Link>
+        <h2 className="text-xl font-semibold mb-2">{t('seller.listingNotFound')}</h2>
+        <p className="text-gray-500 mb-6 text-sm">{error || t('seller.listingNotFoundHint')}</p>
+        <Link to="/seller/dashboard" className="btn btn-secondary">← {t('seller.backToListings')}</Link>
       </div>
     )
   }
@@ -145,7 +134,7 @@ export default function SellerPropertyDetailPage() {
       {/* Back */}
       <Link to="/seller/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-black mb-6 transition-colors">
         <ArrowLeft size={14} />
-        Natrag na moje nekretnine
+        {t('seller.backToListings')}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -203,19 +192,28 @@ export default function SellerPropertyDetailPage() {
             </div>
           ) : (
             <div className="aspect-[16/9] rounded bg-gray-100 flex items-center justify-center">
-              <span className="text-gray-400 text-sm">Nema slika</span>
+              <span className="text-gray-400 text-sm">{t('common.noImages')}</span>
             </div>
           )}
 
-          {/* 3D model button */}
+          {/* 3D model buttons */}
           {prop.model3dUrl && (
-            <button
-              onClick={() => setShow3DViewer(true)}
-              className="btn btn-secondary flex items-center gap-2 text-sm"
-            >
-              <Box size={16} />
-              3D model nekretnine
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setShow3DViewer(true)}
+                className="btn btn-secondary flex items-center gap-2 text-sm"
+              >
+                <Box size={16} />
+                {t('property.model3d')}
+              </button>
+              <Link
+                to={`/seller/3d-config/${listing.listing_id}`}
+                className="btn btn-secondary flex items-center gap-2 text-sm"
+              >
+                <Settings2 size={16} />
+                {t('viewer3d.configureRooms')}
+              </Link>
+            </div>
           )}
 
           {/* Title + price */}
@@ -224,7 +222,7 @@ export default function SellerPropertyDetailPage() {
               <div>
                 {prop.property_type?.type_name && (
                   <span className="badge badge-muted mb-2">
-                    {PROPERTY_TYPE_LABELS[prop.property_type.type_name] ?? prop.property_type.type_name}
+                    {prop.property_type.type_name}
                   </span>
                 )}
                 <h1 className="text-2xl md:text-3xl font-bold">{prop.title}</h1>
@@ -233,8 +231,8 @@ export default function SellerPropertyDetailPage() {
                 <Link
                   to={`/seller/edit/${listing.listing_id}`}
                   className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-gray-500 hover:text-black transition-colors"
-                  title="Uredi oglas"
-                  aria-label="Uredi oglas"
+                  title={t('seller.editListing')}
+                  aria-label={t('seller.editListing')}
                 >
                   <Edit2 size={15} />
                 </Link>
@@ -249,9 +247,9 @@ export default function SellerPropertyDetailPage() {
                       setTimeout(() => setShareCopied(false), 2000)
                     }
                   }}
-                  aria-label={shareCopied ? 'Kopirano!' : 'Dijeli'}
+                  aria-label={shareCopied ? t('common.copiedToClipboard') : t('common.share')}
                   className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-gray-500 hover:text-black transition-colors"
-                  title={shareCopied ? 'Kopirano!' : 'Dijeli oglas'}
+                  title={shareCopied ? t('common.copiedToClipboard') : t('seller.shareListing')}
                 >
                   {shareCopied ? <span className="text-xs">✓</span> : <Share2 size={15} />}
                 </button>
@@ -266,8 +264,8 @@ export default function SellerPropertyDetailPage() {
             )}
 
             <div className="text-3xl font-bold text-black">
-              {formatPrice(listing.price_amount, listing.currency)}
-              {listing.listing_type === 'RENT' && <span className="text-sm font-normal text-gray-500">/mj.</span>}
+              {formatPrice(listing.price_amount, listing.currency, locale)}
+              {listing.listing_type === 'RENT' && <span className="text-sm font-normal text-gray-500">{t('common.perMonth')}</span>}
             </div>
           </div>
 
@@ -277,21 +275,21 @@ export default function SellerPropertyDetailPage() {
               <div className="border border-border rounded p-4 text-center">
                 <Maximize2 size={18} className="mx-auto mb-2 text-gray-400" />
                 <div className="font-semibold">{prop.area_size} m²</div>
-                <div className="text-xs text-gray-500">Površina</div>
+                <div className="text-xs text-gray-500">{t('common.area')}</div>
               </div>
             )}
             {prop.bedrooms != null && (
               <div className="border border-border rounded p-4 text-center">
                 <Bed size={18} className="mx-auto mb-2 text-gray-400" />
                 <div className="font-semibold">{prop.bedrooms}</div>
-                <div className="text-xs text-gray-500">Spavaće sobe</div>
+                <div className="text-xs text-gray-500">{t('common.bedrooms')}</div>
               </div>
             )}
             {prop.bathrooms != null && (
               <div className="border border-border rounded p-4 text-center">
                 <Bath size={18} className="mx-auto mb-2 text-gray-400" />
                 <div className="font-semibold">{prop.bathrooms}</div>
-                <div className="text-xs text-gray-500">Kupaonice</div>
+                <div className="text-xs text-gray-500">{t('common.bathrooms')}</div>
               </div>
             )}
           </div>
@@ -299,7 +297,7 @@ export default function SellerPropertyDetailPage() {
           {/* Description */}
           {prop.description && (
             <div>
-              <h2 className="text-lg font-semibold mb-3">Opis</h2>
+              <h2 className="text-lg font-semibold mb-3">{t('property.description')}</h2>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                 {prop.description}
               </p>
@@ -308,21 +306,21 @@ export default function SellerPropertyDetailPage() {
 
           {/* Details grid */}
           {[
-            details.year_built && { label: 'Godina izgradnje', value: details.year_built },
-            details.total_floors != null && { label: 'Broj katova', value: details.total_floors },
-            details.furnishing_type?.furnishing_name && { label: 'Namještaj', value: details.furnishing_type.furnishing_name },
-            details.heating_type?.heating_name && { label: 'Grijanje', value: details.heating_type.heating_name },
-            details.property_condition?.condition_name && { label: 'Stanje', value: details.property_condition.condition_name },
+            details.year_built && { label: t('property.yearBuilt'), value: details.year_built },
+            details.total_floors != null && { label: t('property.totalFloors'), value: details.total_floors },
+            details.furnishing_type?.furnishing_name && { label: t('property.furnishing'), value: details.furnishing_type.furnishing_name },
+            details.heating_type?.heating_name && { label: t('property.heating'), value: details.heating_type.heating_name },
+            details.property_condition?.condition_name && { label: t('property.condition'), value: details.property_condition.condition_name },
           ].filter(Boolean).length > 0 && (
             <div>
-              <h2 className="text-lg font-semibold mb-4">Detalji</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('property.details')}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  details.year_built && { label: 'Godina izgradnje', value: details.year_built },
-                  details.total_floors != null && { label: 'Broj katova', value: details.total_floors },
-                  details.furnishing_type?.furnishing_name && { label: 'Namještaj', value: details.furnishing_type.furnishing_name },
-                  details.heating_type?.heating_name && { label: 'Grijanje', value: details.heating_type.heating_name },
-                  details.property_condition?.condition_name && { label: 'Stanje', value: details.property_condition.condition_name },
+                  details.year_built && { label: t('property.yearBuilt'), value: details.year_built },
+                  details.total_floors != null && { label: t('property.totalFloors'), value: details.total_floors },
+                  details.furnishing_type?.furnishing_name && { label: t('property.furnishing'), value: details.furnishing_type.furnishing_name },
+                  details.heating_type?.heating_name && { label: t('property.heating'), value: details.heating_type.heating_name },
+                  details.property_condition?.condition_name && { label: t('property.condition'), value: details.property_condition.condition_name },
                 ]
                   .filter(Boolean)
                   .map((detail, i) => (
@@ -340,7 +338,7 @@ export default function SellerPropertyDetailPage() {
           {/* Amenities */}
           {prop.property_amenity?.length > 0 && (
             <div>
-              <h2 className="text-lg font-semibold mb-4">Pogodnosti</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('property.amenities')}</h2>
               <div className="flex flex-wrap gap-2">
                 {prop.property_amenity.map((pa, i) => (
                   <span key={i} className="badge badge-muted">
@@ -356,7 +354,7 @@ export default function SellerPropertyDetailPage() {
             <div>
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Map size={18} className="text-gray-400" />
-                Lokacija
+                {t('property.location')}
               </h2>
               <PropertyLocationPicker
                 address={prop.property_address?.street_address ?? ''}
@@ -376,7 +374,7 @@ export default function SellerPropertyDetailPage() {
           {statuses.length > 0 && (
             <div className="border border-border rounded p-5 bg-amber-50/30">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-3">
-                Status oglasa
+                {t('seller.listingStatus')}
               </h3>
               <select
                 value={listing.status_id ?? ''}
@@ -386,14 +384,14 @@ export default function SellerPropertyDetailPage() {
               >
                 {statuses.map((s) => (
                   <option key={s.status_id} value={s.status_id}>
-                    {STATUS_LABELS[s.status_code] ?? s.description}
+                    {t(`status.${s.status_code}`) !== `status.${s.status_code}` ? t(`status.${s.status_code}`) : s.description}
                   </option>
                 ))}
               </select>
               {statusUpdating && (
                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
                   <span className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                  Ažuriranje…
+                  {t('seller.updating')}
                 </p>
               )}
             </div>
@@ -401,30 +399,30 @@ export default function SellerPropertyDetailPage() {
 
           {/* Listing info card */}
           <div className="border border-border rounded p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">Informacije o oglasu</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">{t('seller.listingInfo')}</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Tip oglasa</span>
-                <span className="font-medium">{listing.listing_type === 'SALE' ? 'Prodaja' : 'Najam'}</span>
+                <span className="text-gray-500">{t('seller.listingTypeLabel')}</span>
+                <span className="font-medium">{listing.listing_type === 'SALE' ? t('common.sale') : t('common.rent')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
+                <span className="text-gray-500">{t('seller.statusLabel')}</span>
                 <span className={`font-medium ${
                   listing.listing_status?.status_code === 'ACTIVE' ? 'text-green-600' : 'text-gray-600'
                 }`}>
-                  {STATUS_LABELS[listing.listing_status?.status_code] ?? listing.listing_status?.description ?? '—'}
+                  {listing.listing_status?.status_code ? t(`status.${listing.listing_status.status_code}`) : '—'}
                 </span>
               </div>
               {listing.date_listed && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Objavljeno</span>
-                  <span className="font-medium">{formatDate(listing.date_listed)}</span>
+                  <span className="text-gray-500">{t('seller.publishedDate')}</span>
+                  <span className="font-medium">{formatDate(listing.date_listed, locale)}</span>
                 </div>
               )}
               {listing.expiration_date && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Istječe</span>
-                  <span className="font-medium">{formatDate(listing.expiration_date)}</span>
+                  <span className="text-gray-500">{t('seller.expiresDate')}</span>
+                  <span className="font-medium">{formatDate(listing.expiration_date, locale)}</span>
                 </div>
               )}
             </div>

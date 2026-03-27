@@ -3,10 +3,12 @@ import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useProperties } from '@/hooks/useProperties'
 import { useFavorites } from '@/hooks/useFavorites'
+import { useI18n } from '@/context/I18nContext'
 import PropertyCard from '@/components/ui/PropertyCard'
 import PropertyFilters, { PropertySearchBar } from '@/components/ui/PropertyFilters'
 
 export default function PropertiesPage() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
 
   const initialFilters = {
@@ -28,25 +30,20 @@ export default function PropertiesPage() {
 
   const { toggleFavorite, isFavorite } = useFavorites()
 
-  // Sync URL params na mount
+  // Sync URL params on mount and whenever searchParams change
   useEffect(() => {
-    const search = searchParams.get('search')
-    const propertyType = searchParams.get('propertyType')
-    if (search || propertyType) {
-      updateFilters({
-        search: search ?? '',
-        propertyType: propertyType ?? '',
-      })
-    }
-  }, [])
+    const search = searchParams.get('search') ?? ''
+    const propertyType = searchParams.get('propertyType') ?? ''
+    updateFilters({ search, propertyType })
+  }, [searchParams])
 
   return (
     <div className="container py-10">
       {/* Page title */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Nekretnine</h1>
+        <h1 className="text-3xl font-bold mb-1">{t('property.title')}</h1>
         <p className="text-sm text-gray-500">
-          Pregledaj i filtriraj dostupne nekretnine
+          {t('property.subtitle')}
         </p>
       </div>
 
@@ -74,7 +71,7 @@ export default function PropertiesPage() {
           {/* Mobile filters — collapsible on small screens */}
           <details className="md:hidden mb-6 card p-4">
             <summary className="text-sm font-medium cursor-pointer select-none">
-              Filteri
+              {t('filters.title')}
             </summary>
             <div className="mt-4">
               <PropertyFilters
@@ -89,7 +86,7 @@ export default function PropertiesPage() {
           {/* Error state */}
           {error && (
             <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-6">
-              Greška pri dohvaćanju nekretnina: {error}
+              {t('property.errorFetching')}: {error}
             </div>
           )}
 
@@ -100,12 +97,12 @@ export default function PropertiesPage() {
             </div>
           ) : properties.length === 0 ? (
             <div className="text-center py-24">
-              <h3 className="text-lg font-semibold mb-2">Nema rezultata</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('property.noResults')}</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Pokušaj promijeniti filtere ili pretragu
+                {t('property.noResultsHint')}
               </p>
               <button onClick={resetFilters} className="btn btn-secondary">
-                Resetiraj filtere
+                {t('property.resetFilters')}
               </button>
             </div>
           ) : (
@@ -132,10 +129,10 @@ export default function PropertiesPage() {
                     {loading ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        Učitavanje…
+                        {t('property.loadingMore')}
                       </>
                     ) : (
-                      'Učitaj još'
+                      t('property.loadMore')
                     )}
                   </button>
                 </div>

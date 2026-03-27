@@ -72,7 +72,27 @@
       "Bash(grep -rn \"listing_status\\\\|status_code.*ACTIVE\\\\|status_id\" /Users/bernard/Desktop/Kvadrato/kvadrato/src/pages --include=*.jsx)",
       "Bash(git check-ignore:*)",
       "Bash(ls /Users/bernard/Desktop/Kvadrato/kvadrato/.env*)",
-      "Bash(git switch:*)"
+      "Bash(git switch:*)",
+      "Bash(npx supabase:*)",
+      "Bash(curl -s -X POST \"https://lscwotltyuudrpsauuvm.supabase.co/functions/v1/migrate-images\" -H \"Authorization: Bearer sb_publishable_MmtLYFZigKuT77jLru5MoQ_Ku1WIRrG\" -H \"Content-Type: application/json\")",
+      "Bash(curl -sI \"https://lscwotltyuudrpsauuvm.supabase.co/storage/v1/object/public/property-pictures/properties/a1000000-0000-0000-0000-000000000001/0.jpg\")",
+      "Bash(find /Users/bernard/Desktop/Kvadrato/kvadrato/supabase/migrations -type f -name *.sql)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/*/bin:$PATH\")",
+      "Bash(npx vite:*)",
+      "Bash(echo $PATH)",
+      "Read(//opt/homebrew/Cellar/node/25.8.1_1/bin/**)",
+      "Bash(ls /Users/bernard/.nvm/versions/node/*/bin/node)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(node scripts/seed-3d-models.mjs)",
+      "Bash(curl -sI \"https://models.poly.pizza/9UGOIbCy8C.glb\")",
+      "Bash(curl -sI \"https://static.poly.pizza/9UGOIbCy8C.glb\")",
+      "Bash(curl -sL \"https://poly.pizza/m/9UGOIbCy8C\")",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\" for id in 9UGOIbCy8C 4NNkEGLAdOb dtgO5dwwtkk 7IGvVkETcSt 6mCTiUUOWQW 8cWuXx5BASV AQQ2g0YE2D)",
+      "Bash(do echo:*)",
+      "Bash(npx -y acorn-jsx --ecma2020 src/pages/seller/AddPropertyPage.jsx)"
     ]
   }
 }

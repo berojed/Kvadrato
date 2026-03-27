@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Menu, X, User, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 import { cn } from '@/lib/utils'
 
 export default function Header() {
   const { user, profile, isAuthenticated, isSeller, isBuyer, signOut } = useAuth()
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -18,16 +20,16 @@ export default function Header() {
       await signOut()
       navigate('/')
     } catch (err) {
-      console.error('signOut greška:', err)
+      if (import.meta.env.DEV) console.error('signOut error:', err)
     }
   }
 
   const navLinks = [
-    { to: '/properties', label: 'Nekretnine', authRequired: true },
-    { to: '/favorites', label: 'Omiljene', buyerOnly: true },
-    { to: '/my-viewings', label: 'Moja razgledavanja', buyerOnly: true },
-    { to: '/seller/dashboard', label: 'Moji oglasi', sellerOnly: true },
-    { to: '/seller/viewings', label: 'Razgledavanja', sellerOnly: true },
+    { to: '/properties', label: t('nav.properties'), authRequired: true },
+    { to: '/favorites', label: t('nav.favorites'), buyerOnly: true },
+    { to: '/my-viewings', label: t('nav.myViewings'), buyerOnly: true },
+    { to: '/seller/dashboard', label: t('nav.myListings'), sellerOnly: true },
+    { to: '/seller/viewings', label: t('nav.viewings'), sellerOnly: true },
   ]
 
   const displayName =
@@ -39,7 +41,7 @@ export default function Header() {
   const settingsLink = isSeller ? '/seller/settings' : '/settings'
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
       <div className="container">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -95,13 +97,13 @@ export default function Header() {
                         : 'bg-blue-50 text-blue-600'
                     )}
                   >
-                    {isSeller ? 'Prodavač' : 'Kupac'}
+                    {isSeller ? t('roles.seller') : t('roles.buyer')}
                   </span>
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-soft-lg py-1.5 z-50">
-                    <div className="px-4 py-2.5 border-b border-gray-100">
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl shadow-soft-lg py-1.5 z-50">
+                    <div className="px-4 py-2.5 border-b border-[var(--color-border)]">
                       <div className="text-sm font-semibold truncate">{displayName}</div>
                       <div className="text-xs text-gray-400 truncate">{user?.email}</div>
                     </div>
@@ -112,7 +114,7 @@ export default function Header() {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <User size={14} />
-                      Profil
+                      {t('nav.profile')}
                     </Link>
 
                     <Link
@@ -121,7 +123,7 @@ export default function Header() {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Settings size={14} />
-                      Postavke
+                      {t('nav.settings')}
                     </Link>
 
                     <div className="divider my-1" />
@@ -130,7 +132,7 @@ export default function Header() {
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut size={14} />
-                      Odjava
+                      {t('nav.signOut')}
                     </button>
                   </div>
                 )}
@@ -138,10 +140,10 @@ export default function Header() {
             ) : (
               <>
                 <Link to="/auth/login" className="btn btn-ghost btn-sm">
-                  Prijava
+                  {t('nav.signIn')}
                 </Link>
                 <Link to="/auth/register" className="btn btn-primary btn-sm">
-                  Registracija
+                  {t('nav.register')}
                 </Link>
               </>
             )}
@@ -165,7 +167,7 @@ export default function Header() {
                 className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                 onClick={() => setMobileOpen(false)}
               >
-                Nekretnine
+                {t('nav.properties')}
               </Link>
             )}
 
@@ -176,14 +178,14 @@ export default function Header() {
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Omiljene
+                  {t('nav.favorites')}
                 </Link>
                 <Link
                   to="/my-viewings"
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Moja razgledavanja
+                  {t('nav.myViewings')}
                 </Link>
               </>
             )}
@@ -195,14 +197,14 @@ export default function Header() {
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Moji oglasi
+                  {t('nav.myListings')}
                 </Link>
                 <Link
                   to="/seller/viewings"
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Razgledavanja
+                  {t('nav.viewings')}
                 </Link>
               </>
             )}
@@ -214,13 +216,13 @@ export default function Header() {
                   className="block px-2 py-2.5 text-sm font-medium text-gray-700 hover:text-black"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Profil
+                  {t('nav.profile')}
                 </Link>
                 <button
                   onClick={handleSignOut}
                   className="block w-full text-left px-2 py-2.5 text-sm font-medium text-red-600"
                 >
-                  Odjava
+                  {t('nav.signOut')}
                 </button>
               </>
             )}
@@ -232,14 +234,14 @@ export default function Header() {
                   className="btn btn-secondary btn-sm flex-1 text-center"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Prijava
+                  {t('nav.signIn')}
                 </Link>
                 <Link
                   to="/auth/register"
                   className="btn btn-primary btn-sm flex-1 text-center"
                   onClick={() => setMobileOpen(false)}
                 >
-                  Registracija
+                  {t('nav.register')}
                 </Link>
               </div>
             )}

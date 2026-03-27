@@ -2,6 +2,7 @@ import { Heart, Bed, Bath, Maximize2, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn, formatPrice } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useI18n } from '@/context/I18nContext'
 
 /**
  * PropertyCard prima listing objekt iz Supabase:
@@ -20,6 +21,7 @@ import { useAuth } from '@/context/AuthContext'
  */
 export default function PropertyCard({ listing, className, linkPrefix = '/properties', onToggleFavorite, isFavorited = false }) {
   const { isAuthenticated, isBuyer } = useAuth()
+  const { t, locale } = useI18n()
 
   const property = listing.property
   if (!property) return null
@@ -57,7 +59,7 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <div className="text-gray-300 text-sm font-light">Nema slike</div>
+            <div className="text-gray-300 text-sm font-light">{t('common.noImage')}</div>
           </div>
         )}
 

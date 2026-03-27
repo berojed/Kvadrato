@@ -14,13 +14,19 @@ import {
   startOfDay,
 } from 'date-fns'
 import { hr } from 'date-fns/locale/hr'
+import { enUS } from 'date-fns/locale/en-US'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const DAY_LABELS = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+import { useI18n } from '@/context/I18nContext'
 
 export default function CalendarPicker({ selectedDate, onDateSelect, minDate }) {
+  const { dateFnsLocaleKey } = useI18n()
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date())
+
+  const dateFnsLocale = dateFnsLocaleKey === 'en' ? enUS : hr
+  const DAY_LABELS = dateFnsLocaleKey === 'en'
+    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    : ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
 
   const today = startOfDay(new Date())
   const effectiveMin = minDate ? startOfDay(minDate) : today
@@ -44,7 +50,7 @@ export default function CalendarPicker({ selectedDate, onDateSelect, minDate }) 
           <ChevronLeft size={16} />
         </button>
         <span className="text-sm font-semibold capitalize">
-          {format(currentMonth, 'LLLL yyyy.', { locale: hr })}
+          {format(currentMonth, 'LLLL yyyy.', { locale: dateFnsLocale })}
         </span>
         <button
           type="button"

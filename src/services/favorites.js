@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
  * Dohvaća omiljene oglase za korisnika
  */
 export async function getFavorites(userId) {
-  console.log('[favorites] getFavorites za:', userId)
+  if (import.meta.env.DEV) console.log('[favorites] getFavorites za:', userId)
 
   const { data, error } = await supabase
     .from('favorite')
@@ -35,9 +35,9 @@ export async function getFavorites(userId) {
     .order('favorited_at', { ascending: false })
 
   if (error) {
-    console.error('[favorites] getFavorites greška:', error.message)
+    if (import.meta.env.DEV) console.error('[favorites] getFavorites greška:', error.message)
   } else {
-    console.log('[favorites] Dohvaćeno favorita:', data?.length)
+    if (import.meta.env.DEV) console.log('[favorites] Dohvaćeno favorita:', data?.length)
   }
 
   return { data: data ?? [], error }
@@ -47,7 +47,7 @@ export async function getFavorites(userId) {
  * Dodaje oglas u omiljene
  */
 export async function addFavorite(userId, listingId) {
-  console.log('[favorites] addFavorite:', { userId, listingId })
+  if (import.meta.env.DEV) console.log('[favorites] addFavorite:', { userId, listingId })
 
   const { data, error } = await supabase
     .from('favorite')
@@ -56,7 +56,7 @@ export async function addFavorite(userId, listingId) {
     .single()
 
   if (error) {
-    console.error('[favorites] addFavorite greška:', error.message)
+    if (import.meta.env.DEV) console.error('[favorites] addFavorite greška:', error.message)
   }
 
   return { data, error }
@@ -66,7 +66,7 @@ export async function addFavorite(userId, listingId) {
  * Uklanja oglas iz omiljenih
  */
 export async function removeFavorite(userId, listingId) {
-  console.log('[favorites] removeFavorite:', { userId, listingId })
+  if (import.meta.env.DEV) console.log('[favorites] removeFavorite:', { userId, listingId })
 
   const { error } = await supabase
     .from('favorite')
@@ -75,37 +75,9 @@ export async function removeFavorite(userId, listingId) {
     .eq('listing_id', listingId)
 
   if (error) {
-    console.error('[favorites] removeFavorite greška:', error.message)
+    if (import.meta.env.DEV) console.error('[favorites] removeFavorite greška:', error.message)
   }
 
   return { error }
 }
 
-/**
- * Provjeri je li oglas u omiljenima
- */
-export async function isFavorite(userId, listingId) {
-  const { data, error } = await supabase
-    .from('favorite')
-    .select('user_id')
-    .eq('user_id', userId)
-    .eq('listing_id', listingId)
-    .maybeSingle()
-
-  return { isFav: !!data, error }
-}
-
-/**
- * Toggle favorit — dodaj ako ne postoji, ukloni ako postoji
- */
-export async function toggleFavorite(userId, listingId) {
-  const { isFav } = await isFavorite(userId, listingId)
-
-  if (isFav) {
-    const { error } = await removeFavorite(userId, listingId)
-    return { isFav: false, error }
-  } else {
-    const { error } = await addFavorite(userId, listingId)
-    return { isFav: true, error }
-  }
-}

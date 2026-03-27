@@ -13,9 +13,11 @@ import {
   Mail, Phone, Shield, CheckCircle, AlertCircle,
   MessageCircle, Globe,
 } from 'lucide-react'
+import { useI18n } from '@/context/I18nContext'
 
 export default function ProfilePage() {
   const { user, updateAuthEmail, refetchProfile } = useAuth()
+  const { t, locale } = useI18n()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -132,11 +134,11 @@ export default function ProfilePage() {
 
     // Basic validation
     if (!file.type.startsWith('image/')) {
-      setError('Odaberite slikovnu datoteku (JPG, PNG, WebP).')
+      setError(t('profile.imageFileError'))
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Slika ne smije biti veća od 5 MB.')
+      setError(t('profile.imageSizeError'))
       return
     }
 
@@ -180,7 +182,7 @@ export default function ProfilePage() {
     } else {
       setEmailMsg({
         type: 'success',
-        text: 'Link za potvrdu je poslan na novu adresu. Provjerite inbox.',
+        text: t('profile.emailConfirmSent'),
       })
       setEmailEditing(false)
       setNewEmail('')
@@ -205,7 +207,7 @@ export default function ProfilePage() {
     if (phoneErr) {
       setPhoneMsg({ type: 'error', text: phoneErr.message })
     } else {
-      setPhoneMsg({ type: 'success', text: 'Telefonski broj je spremljen.' })
+      setPhoneMsg({ type: 'success', text: t('profile.phoneSaved') })
       setPhoneEditing(false)
       // Sync main form state
       setForm((f) => ({
@@ -220,9 +222,9 @@ export default function ProfilePage() {
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const fullName = [form.first_name, form.last_name].filter(Boolean).join(' ')
-  const roleName = profile?.role?.role_code === 'SELLER' ? 'Prodavač' : 'Kupac'
+  const roleName = profile?.role?.role_code === 'SELLER' ? t('roles.seller') : t('roles.buyer')
   const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString('hr-HR', { year: 'numeric', month: 'long' })
+    ? new Date(profile.created_at).toLocaleDateString(locale, { year: 'numeric', month: 'long' })
     : null
 
   if (loading) {
@@ -236,8 +238,8 @@ export default function ProfilePage() {
   return (
     <div className="container py-10 max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Profil</h1>
-        <p className="text-sm text-gray-500">Vaši osobni podaci i račun</p>
+        <h1 className="text-3xl font-bold mb-1">{t('profile.title')}</h1>
+        <p className="text-sm text-gray-500">{t('profile.subtitle')}</p>
       </div>
 
       {/* ── Avatar + Identity card ─────────────────────────────────────────── */}
@@ -266,7 +268,7 @@ export default function ProfilePage() {
               onClick={() => avatarInputRef.current?.click()}
               disabled={avatarUploading}
               className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/40 transition-colors cursor-pointer"
-              title="Promijeni sliku"
+              title={t('profile.changeAvatar')}
             >
               <Camera
                 size={18}
@@ -291,7 +293,7 @@ export default function ProfilePage() {
 
           {/* Identity text */}
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-lg">{fullName || 'Korisnik'}</div>
+            <div className="font-semibold text-lg">{fullName || t('common.user')}</div>
             <div className="text-sm text-gray-500 truncate">{user?.email}</div>
             <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
               <span className="inline-flex items-center gap-1">
@@ -301,7 +303,7 @@ export default function ProfilePage() {
               {memberSince && (
                 <>
                   <span>·</span>
-                  <span>Član od {memberSince}</span>
+                  <span>{t('common.memberSince', { date: memberSince })}</span>
                 </>
               )}
             </div>
@@ -313,7 +315,7 @@ export default function ProfilePage() {
               onClick={handleAvatarRemove}
               disabled={avatarUploading}
               className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-              title="Ukloni sliku"
+              title={t('profile.removeAvatar')}
             >
               <Trash2 size={14} />
             </button>
@@ -325,13 +327,13 @@ export default function ProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <User size={14} className="text-gray-400" />
-          Osobni podaci
+          {t('profile.personalData')}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Ime
+                {t('profile.firstName')}
               </label>
               <input
                 name="first_name"
@@ -344,7 +346,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Prezime
+                {t('profile.lastName')}
               </label>
               <input
                 name="last_name"
@@ -361,10 +363,10 @@ export default function ProfilePage() {
           <div className="border-t border-border pt-5 mt-2 space-y-4">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">
-                Dodatni kontakti za upite
+                {t('profile.additionalContacts')}
               </h3>
               <p className="text-xs text-gray-400">
-                Opcijski – dijele se s prodavačem samo ako su uključeni.
+                {t('profile.additionalContactsHint')}
               </p>
             </div>
 
@@ -425,7 +427,7 @@ export default function ProfilePage() {
                   className="rounded border-gray-300 text-accent focus:ring-accent"
                 />
                 <Globe size={13} className="text-gray-500" />
-                <span className="text-xs font-medium text-gray-600">Ostalo</span>
+                <span className="text-xs font-medium text-gray-600">{t('profile.other')}</span>
               </label>
               <div className="flex-1 flex gap-2">
                 <input
@@ -458,7 +460,7 @@ export default function ProfilePage() {
           {success && (
             <div className="text-sm text-green-700 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-center gap-2">
               <CheckCircle size={14} />
-              Profil je uspješno spremljen!
+              {t('profile.profileSaved')}
             </div>
           )}
 
@@ -466,12 +468,12 @@ export default function ProfilePage() {
             {saving ? (
               <span className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Spremanje…
+                {t('common.saving')}
               </span>
             ) : (
               <>
                 <Save size={14} />
-                Spremi promjene
+                {t('profile.saveChanges')}
               </>
             )}
           </button>
@@ -482,14 +484,14 @@ export default function ProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Mail size={14} className="text-gray-400" />
-          E-mail adresa
+          {t('profile.emailSection')}
         </h2>
 
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">{user?.email}</div>
             <p className="text-xs text-gray-400 mt-0.5">
-              Promjena zahtijeva potvrdu na novoj adresi.
+              {t('profile.emailChangeNote')}
             </p>
           </div>
           {!emailEditing && (
@@ -501,7 +503,7 @@ export default function ProfilePage() {
               }}
               className="btn btn-secondary text-xs flex-shrink-0"
             >
-              Promijeni
+              {t('common.change')}
             </button>
           )}
         </div>
@@ -522,7 +524,7 @@ export default function ProfilePage() {
                 disabled={emailSaving || !newEmail.trim() || newEmail === user?.email}
                 className="btn btn-primary text-xs"
               >
-                {emailSaving ? 'Slanje…' : 'Pošalji potvrdu'}
+                {emailSaving ? t('common.saving') : t('profile.sendConfirm')}
               </button>
               <button
                 type="button"
@@ -532,7 +534,7 @@ export default function ProfilePage() {
                 }}
                 className="btn btn-secondary text-xs"
               >
-                Odustani
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -560,7 +562,7 @@ export default function ProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Phone size={14} className="text-gray-400" />
-          Telefon
+          {t('profile.phoneSection')}
         </h2>
 
         <div className="flex items-center justify-between gap-4">
@@ -568,12 +570,12 @@ export default function ProfilePage() {
             <div className="text-sm font-medium truncate">
               {form.phone_number
                 ? `${form.phone_country_code} ${form.phone_number}`
-                : 'Nije postavljen'}
+                : t('profile.phoneNotSet')}
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
               {form.phone_number
-                ? 'Dijeli se s prodavačem kada pošaljete upit.'
-                : 'Dodajte broj za kontakt prilikom upita.'}
+                ? t('profile.phoneShared')
+                : t('profile.phoneAddHint')}
             </p>
           </div>
           {!phoneEditing && (
@@ -585,7 +587,7 @@ export default function ProfilePage() {
               }}
               className="btn btn-secondary text-xs flex-shrink-0"
             >
-              {form.phone_number ? 'Promijeni' : 'Dodaj'}
+              {form.phone_number ? t('common.change') : t('common.add')}
             </button>
           )}
         </div>
@@ -615,7 +617,7 @@ export default function ProfilePage() {
                 disabled={phoneSaving || !phoneForm.number.trim()}
                 className="btn btn-primary text-xs"
               >
-                {phoneSaving ? 'Spremanje…' : 'Spremi'}
+                {phoneSaving ? t('common.saving') : t('common.save')}
               </button>
               <button
                 type="button"
@@ -625,7 +627,7 @@ export default function ProfilePage() {
                 }}
                 className="btn btn-secondary text-xs"
               >
-                Odustani
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -658,8 +660,8 @@ export default function ProfilePage() {
           <Settings size={18} className="text-gray-600 dark:text-gray-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold">Postavke</div>
-          <div className="text-xs text-gray-500">Sigurnost, privatnost, obavijesti i izgled</div>
+          <div className="text-sm font-semibold">{t('profile.settingsLink')}</div>
+          <div className="text-xs text-gray-500">{t('profile.settingsLinkDesc')}</div>
         </div>
         <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
       </Link>

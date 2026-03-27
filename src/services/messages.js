@@ -41,13 +41,13 @@ export async function sendMessage({ senderId, recipientId, listingId, content })
   // Network / transport error (function unreachable, CORS failure, etc.)
   if (error) {
     if (import.meta.env.DEV) console.error('[messages] sendMessage transport error:', error.message)
-    return { data: null, error: { message: error.message || 'Slanje upita nije uspjelo.' } }
+    return { data: null, error: { message: error.message || 'SEND_FAILED' } }
   }
 
   // Function returned an error-status response (status: 'error')
   if (data?.status === 'error') {
     if (import.meta.env.DEV) console.error('[messages] sendMessage server error:', data.error)
-    return { data: null, error: { message: data.error || 'Slanje upita nije uspjelo.' } }
+    return { data: null, error: { message: data.error || 'SEND_FAILED' } }
   }
 
   // Legacy compatibility: if function returned { error: '...' } without status field
@@ -97,5 +97,36 @@ export async function getMessages({ userId, otherUserId, listingId }) {
   const { data, error } = await query
 
   if (error && import.meta.env.DEV) console.error('[messages] getMessages greška:', error.message)
+  return { data: data ?? [], error }
+}
+
+/**
+ * Dohvaća povijest poruka za specifičnu kombinaciju kupac + prodavač + oglas.
+ * Rezultati su poredani po vremenu slanja – najnovija poruka je prva.
+ *
+ * @param {Object} params
+ * @param {string} params.buyerId   – UUID kupca
+ * @param {string} params.sellerId  – UUID prodavača
+ * @param {string} params.listingId – UUID oglasa
+ *
+ * @returns {{ data: Array<{ content: string, timestamp: string }>, error: object | null }}
+ */
+export async function getBuyerMessageHistory({ buyerId, sellerId, listingId }) {
+  if (import.meta.env.DEV) {
+    console.log('[messages] getBuyerMessageHistory:', { buyerId, sellerId, listingId })
+  }
+
+  const { data, error } = await supabase
+    .from('message')
+    .select('content, timestamp')
+    .eq('buyer_id', buyerId)
+    .eq('seller_id', sellerId)
+    .eq('listing_id', listingId)
+    .order('timestamp', { ascending: false })
+
+  if (error && import.meta.env.DEV) {
+    console.error('[messages] getBuyerMessageHistory greška:', error.message)
+  }
+
   return { data: data ?? [], error }
 }
