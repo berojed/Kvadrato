@@ -23,3 +23,7 @@ npm-debug.log*
 .idea
 *.swp
 *.swo
+
+# Local AI/agent instructions (keep on machine, not on GitHub)
+AGENTS.md
+CLAUDE.md
