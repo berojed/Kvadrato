@@ -1,15 +1,7 @@
 import { supabase } from '@/lib/supabase'
 
-/**
- * ─── NAPOMENA O SHEMI ───
- * Nema zasebne "sellers" tablice!
- * Prodavač = korisnik iz "user" tablice s role_code = 'SELLER'.
- * Profil prodavača je isti kao i profil bilo kojeg korisnika.
- */
+// No dedicated sellers table; seller is a user with role_code 'SELLER'.
 
-/**
- * Dohvaća profil korisnika (bilo kupac ili prodavač)
- */
 export async function getUserProfile(userId) {
   if (import.meta.env.DEV) console.log('[sellers] getUserProfile:', userId)
 
@@ -30,9 +22,6 @@ export async function getUserProfile(userId) {
   return { data, error }
 }
 
-/**
- * Ažurira profil korisnika
- */
 export async function updateUserProfile(userId, updates) {
   if (import.meta.env.DEV) console.log('[sellers] updateUserProfile:', userId)
   const { email: _ignored, ...safeUpdates } = updates
@@ -46,9 +35,6 @@ export async function updateUserProfile(userId, updates) {
   return { data, error }
 }
 
-/**
- * Dodaje telefonski broj korisniku
- */
 export async function addPhoneNumber(userId, countryCode, phoneNumber) {
   if (import.meta.env.DEV) console.log('[sellers] addPhoneNumber za:', userId)
 
@@ -69,14 +55,10 @@ export async function addPhoneNumber(userId, countryCode, phoneNumber) {
   return { data, error }
 }
 
-/**
- * Upsert telefon: ažurira prvi postojeći ili kreira novi.
- * Tretira prvi phone_number red za korisnika kao kanonski.
- */
+// Update first existing row or insert new. Prevents duplicate rows.
 export async function upsertPhoneNumber(userId, countryCode, phoneNumber) {
   if (import.meta.env.DEV) console.log('[sellers] upsertPhoneNumber za:', userId)
 
-  // Try to find existing phone row
   const { data: existing } = await supabase
     .from('phone_number')
     .select('phone_id')
@@ -85,7 +67,6 @@ export async function upsertPhoneNumber(userId, countryCode, phoneNumber) {
     .maybeSingle()
 
   if (existing?.phone_id) {
-    // Update existing
     const { data, error } = await supabase
       .from('phone_number')
       .update({
@@ -100,7 +81,6 @@ export async function upsertPhoneNumber(userId, countryCode, phoneNumber) {
     return { data, error }
   }
 
-  // No existing row — insert
   return addPhoneNumber(userId, countryCode, phoneNumber)
 }
 
@@ -115,7 +95,6 @@ export async function uploadAvatar(userId, file) {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `users/${userId}/avatar.${ext}`
 
-  // Upload (upsert = overwrite if exists)
   const { error: uploadErr } = await supabase.storage
     .from('profile-images')
     .upload(path, file, { upsert: true, contentType: file.type })
@@ -125,7 +104,6 @@ export async function uploadAvatar(userId, file) {
     return { url: null, error: uploadErr }
   }
 
-  // Get public URL
   const { data: urlData } = supabase.storage
     .from('profile-images')
     .getPublicUrl(path)
@@ -138,7 +116,6 @@ export async function uploadAvatar(userId, file) {
   // Append cache-bust to force browser refresh after overwrite
   const avatarUrl = `${publicUrl}?t=${Date.now()}`
 
-  // Persist URL in user profile
   const { error: updateErr } = await supabase
     .from('user')
     .update({ avatar_url: avatarUrl })
@@ -158,7 +135,6 @@ export async function uploadAvatar(userId, file) {
 export async function removeAvatar(userId) {
   if (import.meta.env.DEV) console.log('[sellers] removeAvatar za:', userId)
 
-  // List files in user's avatar folder to find the current avatar
   const { data: files } = await supabase.storage
     .from('profile-images')
     .list(`users/${userId}`)
@@ -168,7 +144,6 @@ export async function removeAvatar(userId) {
     await supabase.storage.from('profile-images').remove(paths)
   }
 
-  // Clear avatar_url in profile
   const { error } = await supabase
     .from('user')
     .update({ avatar_url: null })
@@ -178,9 +153,6 @@ export async function removeAvatar(userId) {
   return { error }
 }
 
-/**
- * Ažurira ulogu korisnika (npr. BUYER → SELLER)
- */
 export async function updateUserRole(userId, roleId) {
   if (import.meta.env.DEV) console.log('[sellers] updateUserRole:', userId, '→ roleId:', roleId)
 
@@ -198,9 +170,7 @@ export async function updateUserRole(userId, roleId) {
   return { data, error }
 }
 
-/**
- * Broji jedinstvene kupce koji su kontaktirali prodavača (distinct buyer_id iz message tablice).
- */
+// Counts distinct buyer_id values; not total messages.
 export async function getSellerContactsCount(sellerId) {
   if (import.meta.env.DEV) console.log('[sellers] getSellerContactsCount:', sellerId)
 
@@ -218,9 +188,6 @@ export async function getSellerContactsCount(sellerId) {
   return { count: uniqueBuyers.size, error: null }
 }
 
-/**
- * Dohvaća statistike prodavača (broj oglasa, aktivnih, itd.)
- */
 export async function getSellerStats(sellerId) {
   if (import.meta.env.DEV) console.log('[sellers] getSellerStats:', sellerId)
 
@@ -244,9 +211,6 @@ export async function getSellerStats(sellerId) {
   return { stats, error: null }
 }
 
-/**
- * Dohvaća sve role iz tablice role
- */
 export async function getRoles() {
   const { data, error } = await supabase
     .from('role')

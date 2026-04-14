@@ -39,7 +39,6 @@ export default function PropertiesPage() {
 
   return (
     <div className="container py-10">
-      {/* Page title */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-1">{t('property.title')}</h1>
         <p className="text-sm text-gray-500">
@@ -47,14 +46,11 @@ export default function PropertiesPage() {
         </p>
       </div>
 
-      {/* Search + sort bar — full width */}
       <div className="mb-6">
         <PropertySearchBar filters={filters} onFiltersChange={updateFilters} />
       </div>
 
-      {/* Sidebar + content layout */}
       <div className="flex gap-8">
-        {/* Left sidebar — filters (hidden on mobile, shown on md+) */}
         <aside className="hidden md:block w-56 flex-shrink-0">
           <div className="sticky top-24">
             <PropertyFilters
@@ -66,12 +62,10 @@ export default function PropertiesPage() {
           </div>
         </aside>
 
-        {/* Main content area */}
         <div className="flex-1 min-w-0">
-          {/* Mobile filters — collapsible on small screens */}
           <details className="md:hidden mb-6 card p-4">
             <summary className="text-sm font-medium cursor-pointer select-none">
-              {t('filters.title')}
+              {t('property.filters')}
             </summary>
             <div className="mt-4">
               <PropertyFilters
@@ -83,14 +77,12 @@ export default function PropertiesPage() {
             </div>
           </details>
 
-          {/* Error state */}
           {error && (
             <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-6">
               {t('property.errorFetching')}: {error}
             </div>
           )}
 
-          {/* Grid */}
           {loading && properties.length === 0 ? (
             <div className="flex items-center justify-center py-24">
               <div className="spinner" />
@@ -118,7 +110,6 @@ export default function PropertiesPage() {
                 ))}
               </div>
 
-              {/* Load more */}
               {hasMore && (
                 <div className="text-center mt-10">
                   <button

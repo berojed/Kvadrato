@@ -18,7 +18,7 @@ const DEFAULT_FILTERS = {
 }
 
 /**
- * Hook za dohvaćanje i filtriranje nekretnina
+ * Hook for fetching and filtering properties with pagination and error handling.
  */
 export function useProperties(initialFilters = {}) {
   const [properties, setProperties] = useState([])

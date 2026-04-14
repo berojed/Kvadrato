@@ -42,7 +42,9 @@
     "memberSince": "Član od {date}",
     "foto": "slika",
     "fotoSelected": "slika odabrana",
-    "fotosSelected": "slika odabrano"
+    "fotosSelected": "slika odabrano",
+    "error": "Greška",
+    "redirecting": "Preusmjeravanje..."
   },
   "nav": {
     "properties": "Nekretnine",
@@ -67,7 +69,6 @@
     "signingIn": "Prijavljivanje…",
     "signInButton": "Prijavi se",
     "signInAs": "Prijavljujem se kao",
-    "roleHint": "Ovo ne utječe na dozvole računa.",
     "email": "E-mail",
     "password": "Lozinka",
     "confirmPassword": "Ponovi lozinku",

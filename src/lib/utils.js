@@ -6,8 +6,8 @@ export function cn(...inputs) {
 }
 
 /**
- * Formatira cijenu — locale-aware
- * Podržava i string ('EUR') i objekt ({ currency_name, symbol })
+ * Formats price according to locale and currency.
+ * Supports both string ('EUR') and object ({ currency_name, symbol }) from Supabase.
  * @param {number} price
  * @param {string|object} currency
  * @param {string} locale - BCP 47 locale tag, default 'hr-HR'
@@ -15,13 +15,13 @@ export function cn(...inputs) {
 export function formatPrice(price, currency = 'EUR', locale = 'hr-HR') {
   if (!price && price !== 0) return '—'
 
-  // Ako je currency objekt iz Supabase, koristi symbol
+  // If it's a currency object from Supabase, use the symbol
   if (typeof currency === 'object' && currency !== null) {
     const symbol = currency.symbol || '€'
     return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(price)} ${symbol}`
   }
 
-  // Ako je string (ISO kod), koristi Intl
+  // If it's a string (ISO code), use Intl
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
@@ -34,7 +34,7 @@ export function formatPrice(price, currency = 'EUR', locale = 'hr-HR') {
 }
 
 /**
- * Formatira datum u čitljiv oblik — locale-aware
+ *  Formats date into a readable format, locale-aware.
  * @param {string|Date} date
  * @param {string} locale - BCP 47 locale tag, default 'hr-HR'
  */
@@ -48,7 +48,7 @@ export function formatDate(date, locale = 'hr-HR') {
 }
 
 /**
- * Skraćuje tekst na zadanu duljinu
+ * Shortens text to a specified length
  */
 export function truncate(text, maxLength = 150) {
   if (!text || text.length <= maxLength) return text

@@ -9,10 +9,8 @@ import * as THREE from 'three'
 // Use local Draco decoder instead of Google CDN
 useGLTF.setDecoderPath('/draco/')
 
-// ─── Constants ───
 const TARGET_NORMALIZED_SIZE = 10 // Standardized model size for consistent camera behaviour
 
-// ─── Error boundary ───
 class ViewerErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -30,7 +28,6 @@ class ViewerErrorBoundary extends Component {
   }
 }
 
-// ─── Model component with auto-centering and scale normalization ───
 function Model({ url, onSceneReady }) {
   const { scene } = useGLTF(url, true)
   const reported = useRef(false)
@@ -71,7 +68,6 @@ function Model({ url, onSceneReady }) {
   return <primitive object={scene} />
 }
 
-// ─── Smooth camera animator ───
 function CameraAnimator({ targetPosition, targetLookAt, controlsRef }) {
   const { camera } = useThree()
   const posVec = useRef(new THREE.Vector3())
@@ -112,7 +108,6 @@ function CameraAnimator({ targetPosition, targetLookAt, controlsRef }) {
   return null
 }
 
-// ─── Loading overlay ───
 function LoadingOverlay() {
   const { t } = useI18n()
   return (
@@ -125,7 +120,6 @@ function LoadingOverlay() {
   )
 }
 
-// ─── Error display ───
 function ErrorDisplay({ onClose }) {
   const { t } = useI18n()
   return (
@@ -146,7 +140,7 @@ function ErrorDisplay({ onClose }) {
   )
 }
 
-// ─── Compute overview camera from bounding box using FOV-based fit ───
+// FOV-based camera fit: distance = (extent / (2 * tan(FOV/2))) * 1.3 padding.
 function computeOverview(bounds) {
   const maxDim = bounds?.maxDim ?? TARGET_NORMALIZED_SIZE
   const [sx, sy, sz] = bounds?.size ?? [maxDim, maxDim, maxDim]
@@ -167,7 +161,6 @@ function computeOverview(bounds) {
   return { position, target }
 }
 
-// ─── Interaction hint ───
 function ViewerHint() {
   const { t } = useI18n()
   return (
@@ -177,7 +170,6 @@ function ViewerHint() {
   )
 }
 
-// ─── Room navigation bar (bottom of viewer) ───
 function RoomBar({ rooms, activeRoomId, onRoomClick, onOverviewClick }) {
   const { t } = useI18n()
   return (
@@ -209,7 +201,6 @@ function RoomBar({ rooms, activeRoomId, onRoomClick, onOverviewClick }) {
   )
 }
 
-// ─── Main modal ───
 export default function Property3DViewerModal({ url, onClose, propertyId }) {
   const [loaded, setLoaded] = useState(false)
   const [cameraTarget, setCameraTarget] = useState(null)
@@ -287,12 +278,9 @@ export default function Property3DViewerModal({ url, onClose, propertyId }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
 
-      {/* Modal content */}
       <div className="relative w-full h-full md:w-[90vw] md:h-[85vh] md:max-w-5xl md:rounded-xl overflow-hidden bg-gray-950">
-        {/* Close button */}
         <button
           onClick={(e) => { e.stopPropagation(); onClose() }}
           className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"

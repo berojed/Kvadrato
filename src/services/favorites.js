@@ -1,15 +1,7 @@
 import { supabase } from '@/lib/supabase'
 
-/**
- * ─── NAPOMENA O SHEMI ───
- * Tablica: favorite (user_id, listing_id, favorited_at)
- * Kompozitni PK: (user_id, listing_id)
- * Favorit je vezan za LISTING (oglas), ne za property.
- */
+// Favorites are listing-scoped, not property-scoped.
 
-/**
- * Dohvaća omiljene oglase za korisnika
- */
 export async function getFavorites(userId) {
   if (import.meta.env.DEV) console.log('[favorites] getFavorites za:', userId)
 
@@ -43,9 +35,6 @@ export async function getFavorites(userId) {
   return { data: data ?? [], error }
 }
 
-/**
- * Dodaje oglas u omiljene
- */
 export async function addFavorite(userId, listingId) {
   if (import.meta.env.DEV) console.log('[favorites] addFavorite:', { userId, listingId })
 
@@ -62,9 +51,6 @@ export async function addFavorite(userId, listingId) {
   return { data, error }
 }
 
-/**
- * Uklanja oglas iz omiljenih
- */
 export async function removeFavorite(userId, listingId) {
   if (import.meta.env.DEV) console.log('[favorites] removeFavorite:', { userId, listingId })
 

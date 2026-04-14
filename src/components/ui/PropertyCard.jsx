@@ -19,6 +19,7 @@ import { useI18n } from '@/context/I18nContext'
  *   seller: { first_name, last_name }
  * }
  */
+
 export default function PropertyCard({ listing, className, linkPrefix = '/properties', onToggleFavorite, isFavorited = false }) {
   const { isAuthenticated, isBuyer } = useAuth()
   const { t, locale } = useI18n()
@@ -26,19 +27,19 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
   const property = listing.property
   if (!property) return null
 
-  // Pronađi primarnu sliku ili prvu po sort_order
+  // Fimd primary image or first by sort_order
   const images = property.image ?? []
   const primaryImage =
     images.find((img) => img.is_primary) ??
     images.sort((a, b) => a.sort_order - b.sort_order)[0]
 
-  // Lokacija
+  // Location
   const location = property.location
   const locationText = location
     ? [location.city, location.state_region].filter(Boolean).join(', ')
     : null
 
-  // Tip nekretnine
+  // Property type
   const typeName = property.property_type?.type_name
 
   const isRent = listing.listing_type === 'RENT'

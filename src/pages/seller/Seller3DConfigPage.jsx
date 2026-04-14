@@ -17,7 +17,7 @@ useGLTF.setDecoderPath('/draco/')
 
 const TARGET_NORMALIZED_SIZE = 10
 
-// ─── Error boundary (class — no hooks) ───
+// Class component: hooks cannot be used in error boundaries.
 class ConfigViewerErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -39,7 +39,7 @@ class ConfigViewerErrorBoundary extends Component {
   }
 }
 
-// ─── Model (same as modal) ───
+// Same normalization pipeline as Property3DViewerModal.
 function Model({ url, onSceneReady }) {
   const { scene } = useGLTF(url, true)
   const reported = useRef(false)
@@ -74,7 +74,6 @@ function Model({ url, onSceneReady }) {
   return <primitive object={scene} />
 }
 
-// ─── Camera animator ───
 function CameraAnimator({ targetPosition, targetLookAt, controlsRef }) {
   const { camera } = useThree()
   const posVec = useRef(new THREE.Vector3())
@@ -110,7 +109,8 @@ function CameraAnimator({ targetPosition, targetLookAt, controlsRef }) {
   return null
 }
 
-// ─── Camera state tracker (reads pose every frame into a ref) ───
+// Reads live camera position and OrbitControls target into a ref each frame.
+// Lets React code outside the Canvas access the current pose without causing re-renders.
 function CameraTracker({ poseRef, controlsRef }) {
   const { camera } = useThree()
 
@@ -298,7 +298,6 @@ export default function Seller3DConfigPage() {
 
   return (
     <div className="container py-8">
-      {/* Back */}
       <Link
         to={`/my_properties/${id}`}
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-black mb-6 transition-colors"
@@ -313,7 +312,6 @@ export default function Seller3DConfigPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Viewer */}
         <div className="lg:col-span-2">
           <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-gray-950">
             {!viewerLoaded && (
@@ -370,7 +368,6 @@ export default function Seller3DConfigPage() {
             )}
           </div>
 
-          {/* Overview button */}
           {viewerLoaded && (
             <button onClick={handleOverview} className="mt-3 btn btn-secondary text-xs">
               {t('viewer3d.overview')}
@@ -378,9 +375,7 @@ export default function Seller3DConfigPage() {
           )}
         </div>
 
-        {/* Config panel */}
         <div className="space-y-5">
-          {/* Save current camera */}
           <div className="card p-5">
             <h3 className="text-sm font-semibold mb-3">
               {editingRoomId ? t('viewer3d.editRoom') : t('viewer3d.saveCurrentCamera')}
@@ -417,7 +412,6 @@ export default function Seller3DConfigPage() {
             </div>
           </div>
 
-          {/* Saved rooms list */}
           <div className="card p-5">
             <h3 className="text-sm font-semibold mb-3">{t('viewer3d.savedRooms')}</h3>
             {rooms.length === 0 ? (
@@ -457,7 +451,6 @@ export default function Seller3DConfigPage() {
             )}
           </div>
 
-          {/* Instruction card */}
           <div className="rounded-lg border border-border p-4 text-xs text-gray-500 space-y-1.5">
             <div className="flex items-start gap-2">
               <AlertCircle size={13} className="mt-0.5 flex-shrink-0 text-amber-500" />

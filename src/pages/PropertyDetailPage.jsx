@@ -121,7 +121,6 @@ export default function PropertyDetailPage() {
     )
   }
 
-  // ─── Izvlačimo podatke iz ugniježđene strukture ───
   const prop = listing.property ?? {}
   const details = prop.property_details ?? {}
   const seller = listing.seller ?? null
@@ -229,16 +228,13 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="container py-8">
-      {/* Back */}
       <Link to={backTo} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-black mb-6 transition-colors">
         <ArrowLeft size={14} />
         {backLabel}
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left: Images + Details */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Image gallery */}
           {images.length > 0 ? (
             <div className="space-y-2">
               <div className="relative aspect-[16/9] rounded overflow-hidden bg-gray-100">
@@ -274,7 +270,6 @@ export default function PropertyDetailPage() {
                 )}
               </div>
 
-              {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {images.slice(0, 6).map((img, i) => (
@@ -295,7 +290,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* 3D model button */}
           {prop.model3dUrl && (
             <button
               onClick={() => setShow3DViewer(true)}
@@ -306,7 +300,6 @@ export default function PropertyDetailPage() {
             </button>
           )}
 
-          {/* Title + price + actions */}
           <div>
             <div className="flex items-start justify-between gap-4 mb-2">
               <div>
@@ -359,7 +352,6 @@ export default function PropertyDetailPage() {
             </div>
           </div>
 
-          {/* Quick specs */}
           <div className="grid grid-cols-3 gap-4">
             {prop.area_size && (
               <div className="border border-border rounded p-4 text-center">
@@ -384,7 +376,6 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Description */}
           {prop.description && (
             <div>
               <h2 className="text-lg font-semibold mb-3">{t('property.description')}</h2>
@@ -394,7 +385,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Details grid */}
           {[
             details.year_built && { label: t('property.yearBuilt'), value: details.year_built },
             details.total_floors != null && { label: t('property.totalFloors'), value: details.total_floors },
@@ -425,7 +415,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Amenities */}
           {prop.property_amenity?.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold mb-4">{t('property.amenities')}</h2>
@@ -439,7 +428,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Location map */}
           {(addressDisplay || (prop.latitude && prop.longitude)) && (
             <div>
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -459,9 +447,7 @@ export default function PropertyDetailPage() {
 
         </div>
 
-        {/* Right: Seller card + Visit form */}
         <div className="space-y-6">
-          {/* Seller */}
           {seller && (
             <div className="border border-border rounded p-5">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-4">{t('property.seller')}</h3>
@@ -488,7 +474,6 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Visit request form — hidden for sellers */}
           {!isSeller && <div className="border border-border rounded p-5">
             <div className="flex items-center gap-2 mb-4">
               <Calendar size={16} className="text-gray-500" />
@@ -593,7 +578,6 @@ export default function PropertyDetailPage() {
               </form>
             )}
           </div>}
-          {/* Inquiry form — hidden for sellers */}
           {!isSeller && seller && (
             <div className="border border-border rounded p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -643,7 +627,6 @@ export default function PropertyDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Previous messages */}
                   {messageHistory.length > 0 && (
                     <div className="space-y-2 mb-3">
                       <p className="text-xs font-medium text-gray-500">{t('message.previousMessages')}</p>
@@ -705,7 +688,6 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      {/* 3D Viewer Modal – lazy mounted only when open */}
       {show3DViewer && prop.model3dUrl && (
         <Viewer3DErrorBoundary onClose={() => setShow3DViewer(false)}>
           <Suspense fallback={null}>

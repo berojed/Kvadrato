@@ -1,14 +1,7 @@
 import { supabase } from '@/lib/supabase'
 
-/**
- * ─── NAPOMENA O SHEMI ───
- * "Oglas" = listing tablica, "Nekretnina" = property tablica.
- * Kad korisnik vidi popis oglasa, dohvaćamo listing + property + location + images.
- */
+// listing = ad record; property = real estate entity.
 
-/**
- * Dohvaća sve aktivne oglase s nekretninama, lokacijama i slikama
- */
 export async function getListings({
   search = '',
   propertyType = '',
@@ -28,10 +21,9 @@ export async function getListings({
 } = {}) {
   if (import.meta.env.DEV) console.log('[properties] getListings pozvan:', { search, propertyType, listingType, stateRegion, city })
 
-  // Treba li !inner join na location (kad filtriramo po županiji ili gradu)
+  // !inner join on location required when filtering by city/state
   const needsLocationInner = !!(stateRegion || city)
 
-  // Primjeni zajedničke filtere (listing + property + location)
   const applyCommon = (q) => {
     q = q.eq('listing_status.status_code', 'ACTIVE')
     if (listingType) q = q.eq('listing_type', listingType)
@@ -47,7 +39,6 @@ export async function getListings({
     return q
   }
 
-  // Ako ima search – pokrećemo dva upita (title OR city) i spajamo rezultate
   if (search) {
     const locationJoin = needsLocationInner ? 'location!inner' : 'location'
     const propertyTypeJoin = propertyType ? 'property_type!inner' : 'property_type'
@@ -81,13 +72,12 @@ export async function getListings({
     const error = r1.error || r2.error
     if (error && import.meta.env.DEV) console.error('[properties] getListings greška:', error.message)
 
-    // Spoji i deduplikaj po listing_id
+    // Merge and deduplicate by listing_id
     const data1 = r1.data ?? []
     const data2 = r2.data ?? []
     const seen = new Set(data1.map((l) => l.listing_id))
     const merged = [...data1, ...data2.filter((l) => !seen.has(l.listing_id))]
 
-    // Sortiraj spojene rezultate
     merged.sort((a, b) => {
       const av = a[sortBy]
       const bv = b[sortBy]
@@ -108,7 +98,6 @@ export async function getListings({
     }
   }
 
-  // Standardni slučaj bez search – jedan upit s paginacijom
   const needsPropertyInner = !!(minBedrooms !== null || minBathrooms !== null || minSize !== null || maxSize !== null || propertyType || needsLocationInner)
   const propertyJoin = needsPropertyInner ? 'property!inner' : 'property'
   const propertyTypeJoin = propertyType ? 'property_type!inner' : 'property_type'
@@ -149,9 +138,6 @@ export async function getListings({
   }
 }
 
-/**
- * Dohvaća jedan oglas po listing_id s punim detaljima
- */
 export async function getListingById(listingId) {
   if (import.meta.env.DEV) console.log('[properties] getListingById:', listingId)
 
@@ -185,19 +171,17 @@ export async function getListingById(listingId) {
     console.error('[properties] getListingById greška:', error.message)
   }
 
-  // Normalize to JS-friendly model3dUrl.
-  // model3d relation is now canonical; fall back to legacy "3d_model_url" column during migration.
+  // model3d relation is canonical; fall back to legacy 3d_model_url during migration.
   if (data?.property) {
     const m3d = Array.isArray(data.property.model3d)
       ? data.property.model3d[0]
       : data.property.model3d
     data.property.model3dUrl = m3d?.url ?? data.property['3d_model_url'] ?? null
 
-    // Auto-heal: if no model3dUrl but storage might have a file, attempt backfill
+    // Auto-heal: if no model3d row but storage has a file, backfill the DB record.
     if (!data.property.model3dUrl && data.property.property_id) {
       const { backfilled } = await backfillModel3dIfNeeded(data.property.property_id)
       if (backfilled) {
-        // Re-fetch the model3d row after backfill
         const { data: m3dRow } = await supabase
           .from('model3d')
           .select('url')
@@ -211,9 +195,6 @@ export async function getListingById(listingId) {
   return { data, error }
 }
 
-/**
- * Dohvaća oglase određenog prodavača
- */
 export async function getListingsBySeller(sellerId) {
   if (import.meta.env.DEV) console.log('[properties] getListingsBySeller:', sellerId)
 
@@ -240,9 +221,6 @@ export async function getListingsBySeller(sellerId) {
   return { data: data ?? [], error }
 }
 
-/**
- * Kreira novu nekretninu i oglas (multi-step)
- */
 export async function createPropertyAndListing({
   streetAddress,
   floorNumber = null,
@@ -266,27 +244,22 @@ export async function createPropertyAndListing({
 }) {
   if (import.meta.env.DEV) console.log('[properties] createPropertyAndListing za seller:', sellerId)
 
-  // Validate house number is present in streetAddress
   if (!streetAddress || !streetAddress.trim()) {
     return { data: null, error: { message: 'Adresa nekretnine je obavezna.' } }
   }
 
-  // Validate minimum 3 images
   if (!imageFiles || imageFiles.length < 3) {
     return { data: null, error: { message: 'Potrebno je najmanje 3 slike nekretnine.' } }
   }
 
-  // Validate required property details
   if (!propertyDetails?.yearBuilt) {
     return { data: null, error: { message: 'Godina izgradnje je obavezna.' } }
   }
 
-  // At the start, look up the ACTIVE status from DB
   const { data: statusRow } = await supabase
     .from('listing_status').select('status_id').eq('status_code', 'ACTIVE').single()
   const resolvedStatusId = statusRow?.status_id ?? statusId
 
-  // 1. Kreiraj adresu
   const { data: address, error: addrErr } = await supabase
     .from('property_address')
     .insert({ street_address: streetAddress, floor_number: floorNumber })
@@ -298,7 +271,6 @@ export async function createPropertyAndListing({
     return { data: null, error: addrErr }
   }
 
-  // 2. Kreiraj nekretninu
   const propertyInsert = {
     title,
     description,
@@ -321,12 +293,12 @@ export async function createPropertyAndListing({
 
   if (propErr) {
     if (import.meta.env.DEV) console.error('[properties] Greška kreiranja nekretnine:', propErr.message)
-    // Clean up orphaned address
+    // Clean up orphaned address on failure.
     await supabase.from('property_address').delete().eq('address_id', address.address_id)
     return { data: null, error: propErr }
   }
 
-  // 3. Kreiraj oglas (seller ownership lives here, not on property)
+  // Seller ownership lives on listing, not on property.
   const { data: listing, error: listErr } = await supabase
     .from('listing')
     .insert({
@@ -342,13 +314,13 @@ export async function createPropertyAndListing({
 
   if (listErr) {
     if (import.meta.env.DEV) console.error('[properties] Greška kreiranja oglasa:', listErr.message)
-    // Clean up orphaned property and address
+    // Clean up orphaned property and address on failure.
     await supabase.from('property').delete().eq('property_id', property.property_id)
     await supabase.from('property_address').delete().eq('address_id', address.address_id)
     return { data: null, error: listErr }
   }
 
-  // 4. Insert property_details (1:1 with property) — MANDATORY
+  // property_details insert is mandatory; fail hard on error.
   if (propertyDetails) {
     const { error: detErr } = await supabase
       .from('property_details')
@@ -370,7 +342,6 @@ export async function createPropertyAndListing({
     }
   }
 
-  // 5. Insert property_amenity rows — MANDATORY when selected
   if (amenityIds.length > 0) {
     const amenityRows = amenityIds.map((aid) => ({
       property_id: property.property_id,
@@ -388,7 +359,6 @@ export async function createPropertyAndListing({
     }
   }
 
-  // 6. Upload slika u Storage i spremi URL-ove u image tablicu
   if (imageFiles.length > 0) {
     const imageRows = []
     for (let i = 0; i < imageFiles.length; i++) {
@@ -429,13 +399,10 @@ export async function createPropertyAndListing({
   return { data: { listing, property, address }, error: null }
 }
 
-/**
- * Briše oglas i pripadajuću nekretninu
- */
 export async function deleteListing(listingId) {
   if (import.meta.env.DEV) console.log('[properties] deleteListing:', listingId)
 
-  // Fetch property_id and address_id before delete — needed for cleanup
+  // Fetch property_id and address_id before delete for cleanup.
   const { data: listing } = await supabase
     .from('listing')
     .select('property_id, property:property_id(address_id)')
@@ -453,14 +420,12 @@ export async function deleteListing(listingId) {
   }
 
   if (listing?.property_id) {
-    // Clean up model3d, property_details, property_amenity rows (best-effort)
-    // NOTE: if DB has CASCADE on property FK, these are redundant but safe
+    // Best-effort cleanup; redundant if DB has CASCADE on property FK.
     await supabase.from('model3d').delete().eq('property_id', listing.property_id)
     await supabase.from('property_details').delete().eq('property_id', listing.property_id)
     await supabase.from('property_amenity').delete().eq('property_id', listing.property_id)
     await supabase.from('image').delete().eq('property_id', listing.property_id)
 
-    // Best-effort storage cleanup for images and 3D model
     try {
       const { data: imgFiles } = await supabase.storage
         .from('property-pictures')
@@ -485,7 +450,6 @@ export async function deleteListing(listingId) {
       console.warn('[properties] Greška brisanja nekretnine:', propErr.message)
     }
 
-    // Clean up orphaned property_address
     if (addressId) {
       await supabase.from('property_address').delete().eq('address_id', addressId)
     }
@@ -494,9 +458,6 @@ export async function deleteListing(listingId) {
   return { error: null }
 }
 
-/**
- * Lookup podaci za forme
- */
 export async function getPropertyTypes() {
   const { data, error } = await supabase
     .from('property_type')
@@ -537,12 +498,12 @@ export async function getAmenities() {
  * Matches on (city, state_region, postal_code, country) for precise deduplication.
  * Falls back to (city, country) if postal_code or state_region are missing.
  */
+
 export async function resolveLocationId({ city, stateRegion, postalCode, country = 'Hrvatska' }) {
   if (import.meta.env.DEV) console.log('[properties] resolveLocationId:', city, stateRegion, postalCode)
 
   if (!city) return { locationId: null, error: { message: 'Grad je obavezan.' } }
 
-  // Try to find existing with full signature
   let query = supabase
     .from('location')
     .select('location_id')
@@ -558,7 +519,6 @@ export async function resolveLocationId({ city, stateRegion, postalCode, country
     return { locationId: existing.location_id, error: null }
   }
 
-  // Create new
   const { data: created, error } = await supabase
     .from('location')
     .insert({
@@ -578,9 +538,6 @@ export async function resolveLocationId({ city, stateRegion, postalCode, country
   return { locationId: created.location_id, error: null }
 }
 
-/**
- * Dohvaća sve statuse oglasa iz listing_status tablice.
- */
 export async function getListingStatuses() {
   const { data, error } = await supabase
     .from('listing_status')
@@ -590,14 +547,10 @@ export async function getListingStatuses() {
   return { data: data ?? [], error }
 }
 
-/**
- * Ažurira status oglasa (seller-only, zaštićeno RLS-om).
- * Provjerava vlasništvo i validnost statusId-a na service razini.
- */
+// Verifies seller ownership and status validity before updating. Protected by RLS.
 export async function updateListingStatus({ listingId, sellerId, statusId }) {
   if (import.meta.env.DEV) console.log('[properties] updateListingStatus:', listingId, '→', statusId)
 
-  // 1. Verify the listing belongs to this seller
   const { data: listing, error: fetchErr } = await supabase
     .from('listing')
     .select('listing_id, seller_id')
@@ -610,7 +563,6 @@ export async function updateListingStatus({ listingId, sellerId, statusId }) {
     return { data: null, error: fetchErr || { message: 'Oglas nije pronađen ili nemate pristup.' } }
   }
 
-  // 2. Verify the status exists
   const { data: status, error: statusErr } = await supabase
     .from('listing_status')
     .select('status_id')
@@ -622,7 +574,6 @@ export async function updateListingStatus({ listingId, sellerId, statusId }) {
     return { data: null, error: { message: 'Nevažeći status.' } }
   }
 
-  // 3. Update the listing status
   const { data: updated, error: updateErr } = await supabase
     .from('listing')
     .update({ status_id: statusId })
@@ -638,10 +589,7 @@ export async function updateListingStatus({ listingId, sellerId, statusId }) {
   return { data: updated, error: null }
 }
 
-/**
- * Dohvaća jedan oglas za seller-only detalje (seller-scoped).
- * Identičan getListingById ali filtrira po seller_id.
- */
+// Same as getListingById but filtered by seller_id for seller-only access.
 export async function getSellerListingById(listingId, sellerId) {
   if (import.meta.env.DEV) console.log('[properties] getSellerListingById:', listingId)
 
@@ -676,7 +624,6 @@ export async function getSellerListingById(listingId, sellerId) {
     console.error('[properties] getSellerListingById greška:', error.message)
   }
 
-  // Normalize model3dUrl
   if (data?.property) {
     const m3d = Array.isArray(data.property.model3d)
       ? data.property.model3d[0]
@@ -700,9 +647,6 @@ export async function getSellerListingById(listingId, sellerId) {
   return { data, error }
 }
 
-/**
- * Dohvaća oglas za uređivanje (seller-scoped)
- */
 export async function getListingForEdit(listingId, sellerId) {
   if (import.meta.env.DEV) console.log('[properties] getListingForEdit:', listingId)
 
@@ -731,9 +675,6 @@ export async function getListingForEdit(listingId, sellerId) {
   return { data, error }
 }
 
-/**
- * Ažurira postojeći oglas i nekretninu
- */
 export async function updatePropertyAndListing({
   listingId,
   propertyId,
@@ -756,12 +697,10 @@ export async function updatePropertyAndListing({
 }) {
   if (import.meta.env.DEV) console.log('[properties] updatePropertyAndListing:', listingId)
 
-  // Validate required property details
   if (!propertyDetails?.yearBuilt) {
     return { error: { message: 'Godina izgradnje je obavezna.' } }
   }
 
-  // 1. Ažuriraj adresu
   if (addressId) {
     const { error: addrErr } = await supabase
       .from('property_address')
@@ -774,7 +713,6 @@ export async function updatePropertyAndListing({
     }
   }
 
-  // 2. Ažuriraj nekretninu
   const propertyUpdate = {
     title,
     description,
@@ -796,7 +734,6 @@ export async function updatePropertyAndListing({
     return { error: propErr }
   }
 
-  // 3. Ažuriraj oglas
   const { error: listErr } = await supabase
     .from('listing')
     .update({
@@ -811,7 +748,6 @@ export async function updatePropertyAndListing({
     return { error: listErr }
   }
 
-  // 4. Upsert property_details — MANDATORY
   if (propertyDetails && propertyId) {
     const detailsPayload = {
       property_id: propertyId,
@@ -830,15 +766,12 @@ export async function updatePropertyAndListing({
     }
   }
 
-  // 5. Replace property_amenity rows — MANDATORY when provided
   if (amenityIds !== null && propertyId) {
-    // Delete existing
     const { error: delAmErr } = await supabase.from('property_amenity').delete().eq('property_id', propertyId)
     if (delAmErr) {
       if (import.meta.env.DEV) console.error('[properties] Greška brisanja starih amenities:', delAmErr.message)
       return { error: { message: 'Greška pri ažuriranju pogodnosti: ' + delAmErr.message } }
     }
-    // Insert new
     if (amenityIds.length > 0) {
       const rows = amenityIds.map((aid) => ({ property_id: propertyId, amenity_id: aid }))
       const { error: amErr } = await supabase.from('property_amenity').insert(rows)
@@ -857,6 +790,7 @@ export async function updatePropertyAndListing({
  * Enforces 1:1 per property — existing model at the same path is overwritten.
  * Clears saved room presets because coordinates are tied to the previous model geometry.
  */
+
 export async function upsertPropertyModel(propertyId, file) {
   if (import.meta.env.DEV) console.log('[properties] upsertPropertyModel:', propertyId)
 
@@ -888,7 +822,7 @@ export async function upsertPropertyModel(propertyId, file) {
     console.error('[properties] model3d upsert greška:', error.message)
   }
 
-  // Clear saved room presets — they are tied to the previous model's geometry
+  // Room presets reference geometry coordinates (clear them when model changes).
   if (!error) {
     await supabase.from('property_3d_room').delete().eq('property_id', propertyId)
   }
@@ -921,18 +855,8 @@ export async function removePropertyModel(propertyId) {
   return { error }
 }
 
-/**
- * Backfills model3d rows for properties that have a model file in Storage
- * but no corresponding DB record. This handles models uploaded before the
- * upsertPropertyModel code was introduced.
- *
- * Safe to call multiple times — skips properties that already have a model3d row.
- *
- * @param {string} propertyId – property to check
- * @returns {{ backfilled: boolean, error: object|null }}
- */
+// Idempotent: creates a model3d DB row when a file exists in Storage but the row is missing.
 export async function backfillModel3dIfNeeded(propertyId) {
-  // Check if model3d row already exists
   const { data: existing } = await supabase
     .from('model3d')
     .select('model_id')
@@ -941,7 +865,6 @@ export async function backfillModel3dIfNeeded(propertyId) {
 
   if (existing) return { backfilled: false, error: null }
 
-  // Check if a file exists in storage at the expected path
   const path = `properties/${propertyId}/model.glb`
   const { data: files, error: listErr } = await supabase.storage
     .from('property-models')
@@ -949,7 +872,6 @@ export async function backfillModel3dIfNeeded(propertyId) {
 
   if (listErr || !files?.length) return { backfilled: false, error: listErr }
 
-  // File exists in storage but no DB row — backfill
   const { data: urlData } = supabase.storage
     .from('property-models')
     .getPublicUrl(path)
@@ -974,7 +896,6 @@ export async function backfillModel3dIfNeeded(propertyId) {
 export async function addPropertyImages(propertyId, files) {
   if (import.meta.env.DEV) console.log('[properties] addPropertyImages:', propertyId, files.length, 'files')
 
-  // Get current max sort_order
   const { data: existing } = await supabase
     .from('image')
     .select('sort_order')
@@ -1031,7 +952,6 @@ export async function addPropertyImages(propertyId, files) {
 export async function removePropertyImage(imageId) {
   if (import.meta.env.DEV) console.log('[properties] removePropertyImage:', imageId)
 
-  // Get the image row to find the URL for storage cleanup
   const { data: img } = await supabase
     .from('image')
     .select('image_id, url, property_id, is_primary')
@@ -1040,25 +960,21 @@ export async function removePropertyImage(imageId) {
 
   if (!img) return { error: { message: 'Slika nije pronađena.' } }
 
-  // Delete DB row
   const { error } = await supabase.from('image').delete().eq('image_id', imageId)
   if (error) {
     if (import.meta.env.DEV) console.error('[properties] Greška brisanja slike:', error.message)
     return { error }
   }
 
-  // Best-effort Storage cleanup — extract path from public URL
   try {
     const urlObj = new URL(img.url)
     const pathMatch = urlObj.pathname.match(/\/property-pictures\/(.+)$/)
     if (pathMatch) {
       await supabase.storage.from('property-pictures').remove([pathMatch[1]])
     }
-  } catch {
-    // Storage cleanup is best-effort
-  }
+  } catch { /* best-effort */ }
 
-  // If we deleted the primary, promote the next image
+  // If primary was deleted, promote the next image by sort_order.
   if (img.is_primary) {
     const { data: nextImg } = await supabase
       .from('image')

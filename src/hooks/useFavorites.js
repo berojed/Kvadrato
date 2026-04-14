@@ -2,9 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { getFavorites, addFavorite, removeFavorite } from '@/services/favorites'
 import { useAuth } from '@/context/AuthContext'
 
-/**
- * Hook za upravljanje omiljenima
- */
 export function useFavorites() {
   const { user, isAuthenticated, isBuyer } = useAuth()
   const [favorites, setFavorites] = useState([])
@@ -35,7 +32,7 @@ export function useFavorites() {
 
       const currentlyFav = favoriteIds.has(propertyId)
 
-      // Optimistički update
+      // Optimistic update.
       setFavoriteIds((prev) => {
         const next = new Set(prev)
         if (currentlyFav) {
@@ -50,7 +47,7 @@ export function useFavorites() {
       if (currentlyFav) {
         result = await removeFavorite(user.id, propertyId)
         if (result.error) {
-          // Vrati na staro ako greška
+          // Revert on error.
           setFavoriteIds((prev) => new Set([...prev, propertyId]))
         } else {
           setFavorites((prev) => prev.filter((f) => f.listing_id !== propertyId))
@@ -58,14 +55,14 @@ export function useFavorites() {
       } else {
         result = await addFavorite(user.id, propertyId)
         if (result.error) {
-          // Vrati na staro ako greška
+          // Revert on error.
           setFavoriteIds((prev) => {
             const next = new Set(prev)
             next.delete(propertyId)
             return next
           })
         } else {
-          fetchFavorites() // Refetch za ažurirane podatke
+          fetchFavorites()
         }
       }
 

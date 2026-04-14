@@ -20,8 +20,7 @@ const STATS_CONFIG = [
 ]
 
 /* ────────────────────────────────────────────
-   HERO — prikazuje se SVIMA (gost, buyer, seller)
-   ali s različitim CTA-ovima
+    Shows for EVERYONE (guest, buyer, seller), but with different content based on role
    ──────────────────────────────────────────── */
 function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
   const { t } = useI18n()
@@ -173,7 +172,7 @@ function HeroSection({ isAuthenticated, isSeller, isBuyer }) {
 }
 
 /* ────────────────────────────────────────────
-   BUYER CATEGORIES — samo za kupce i goste
+   BUYER CATEGORIES — just for buyers and guests (not sellers)
    ──────────────────────────────────────────── */
 function BuyerCategories() {
   const { t } = useI18n()
@@ -226,7 +225,7 @@ function BuyerCategories() {
 }
 
 /* ────────────────────────────────────────────
-   MAIN HOME PAGE
+   MAIN HOME PAGE — shows for EVERYONE (guests, buyers, sellers), but with different content based on role
    ──────────────────────────────────────────── */
 export default function HomePage() {
   const { isAuthenticated, isSeller, isBuyer } = useAuth()
@@ -234,14 +233,14 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Hero — svi vide, ali različit sadržaj */}
+      {/* Hero - everyone sees it, but with different content */}
       <HeroSection
         isAuthenticated={isAuthenticated}
         isSeller={isSeller}
         isBuyer={isBuyer}
       />
 
-      {/* Stats — svi vide */}
+      {/* Stats - everyone sees */}
       <section className="border-b border-gray-100">
         <div className="container py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -255,10 +254,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Role-specifični sadržaj */}
+      {/* Role-specific content */}
       {!isSeller && <BuyerCategories />}
 
-      {/* CTA za registraciju — samo za GOSTE (neprijavljene) */}
+      {/* CTA for registration — just for guests (not logged in) */}
       {!isAuthenticated && (
         <section className="bg-gradient-to-b from-gray-50 to-white">
           <div className="container py-24">

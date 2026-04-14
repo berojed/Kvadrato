@@ -9,14 +9,10 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Sprječava dvostruki poziv u development modu
+  // Prevents double-invocation in React StrictMode dev.
   const initialized = useRef(false)
 
-  /**
-   * Dohvaća profil iz public."user" tablice.
-   * Ako trigger nije aktivan, profil neće postojati — to je OK,
-   * auth i dalje radi, samo profile === null.
-   */
+  // If the trigger is inactive, profile won't exist; auth still works with profile === null.
   const fetchProfile = async (userId) => {
     if (!userId) {
       setProfile(null)
@@ -32,7 +28,7 @@ export function AuthProvider({ children }) {
       .single()
 
     if (error) {
-      // PGRST116 = "no rows found" — znači trigger nije kreirao profil
+      // PGRST116 = no rows found; trigger hasn't created the profile yet.
       if (error.code === 'PGRST116') {
         if (import.meta.env.DEV) console.warn('[AuthContext] Profil ne postoji u "user" tablici (trigger nije aktivan)')
       } else {
@@ -53,7 +49,6 @@ export function AuthProvider({ children }) {
 
     if (import.meta.env.DEV) console.log('[AuthContext] Inicijalizacija...')
 
-    // 1. Dohvati postojeću sesiju
     supabase.auth.getSession().then(async ({ data: { session: s }, error }) => {
       if (import.meta.env.DEV) console.log('[AuthContext] Početna sesija:', s ? `✓ ${s.user.email}` : '✗ nema')
       if (error && import.meta.env.DEV) console.error('[AuthContext] getSession greška:', error.message)
@@ -66,7 +61,6 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    // 2. Slušaj promjene auth stanja
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (import.meta.env.DEV) console.log('[AuthContext] Auth event:', event, '| User:', s?.user?.email ?? 'null')
@@ -86,8 +80,6 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  /* ─── Auth metode ─── */
-
   const signUp = async ({ email, password, firstName, lastName, roleId }) => {
   if (import.meta.env.DEV) console.log('[Auth] signUp pokušaj:', email, '| roleId:', roleId)
 
@@ -106,7 +98,7 @@ export function AuthProvider({ children }) {
 
   if (import.meta.env.DEV) console.log('[Auth] Korisnik kreiran:', data.user?.id)
 
-  // Ako ima sesiju odmah (email confirm OFF), postavi stanje
+  // If session exists immediately (email confirm disabled), set state now.
   if (data.session) {
     setUser(data.user)
     setSession(data.session)
@@ -136,7 +128,7 @@ export function AuthProvider({ children }) {
 
     let profileData = null
     if (data.user) {
-      // ODMAH postavi stanje — ne čekaj onAuthStateChange
+      // Set state immediately; do not wait for onAuthStateChange.
       setUser(data.user)
       setSession(data.session)
       profileData = await fetchProfile(data.user.id)
@@ -160,11 +152,7 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
-  /**
-   * Ažurira email adresu putem Supabase Auth (ne putem public.user).
-   * Supabase šalje confirmation email na novu adresu — dok se ne potvrdi,
-   * stari email ostaje aktivan.
-   */
+  // Updates via Supabase Auth, not public.user. Old email stays active until new one is confirmed.
   const updateAuthEmail = async (newEmail) => {
     if (import.meta.env.DEV) console.log('[Auth] updateAuthEmail:', newEmail)
     const { data, error } = await supabase.auth.updateUser({ email: newEmail })
@@ -174,10 +162,7 @@ export function AuthProvider({ children }) {
     return { data, error }
   }
 
-  /**
-   * Ažurira lozinku putem Supabase Auth.
-   * Ne zahtijeva staru lozinku ako korisnik ima aktivnu sesiju.
-   */
+  // No current password required when session is active.
   const updateAuthPassword = async (newPassword) => {
     if (import.meta.env.DEV) console.log('[Auth] updateAuthPassword')
     const { data, error } = await supabase.auth.updateUser({ password: newPassword })
@@ -185,7 +170,6 @@ export function AuthProvider({ children }) {
     return { data, error }
   }
 
-  /* ─── Izvedene vrijednosti ─── */
   const isSeller = profile?.role?.role_code === 'SELLER'
   const isBuyer = profile?.role?.role_code === 'BUYER'
 
@@ -211,7 +195,7 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) {
-    throw new Error('useAuth mora biti unutar AuthProvider')
+    throw new Error('useAuth must be used within AuthProvider')
   }
   return context
 }

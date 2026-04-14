@@ -21,7 +21,7 @@ import {
 import { ArrowLeft, Box, X, ImagePlus } from 'lucide-react'
 import PropertyLocationPicker from '@/components/ui/PropertyLocationPicker'
 
-// ── Stable wrapper components (module scope → no remount on parent re-render) ──
+// Stable wrapper components defined at module scope to prevent remount on parent re-render.
 const Section = ({ title, children }) => (
   <div className="border border-border rounded p-6 space-y-4">
     <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">{title}</h2>
@@ -199,7 +199,6 @@ export default function AddPropertyPage() {
     setForm((f) => ({ ...f, latitude: lat, longitude: lng }))
   }, [])
 
-  // ── Amenity toggles ──
   const toggleAmenity = (amenityId) => {
     setSelectedAmenities((prev) =>
       prev.includes(amenityId)
@@ -208,7 +207,6 @@ export default function AddPropertyPage() {
     )
   }
 
-  // ── Image handlers ──
   const handleImageFilesChange = (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
@@ -232,7 +230,6 @@ export default function AddPropertyPage() {
     setImageFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // ── Edit-mode image handlers ──
   const handleRemoveExistingImage = async (imageId) => {
     if (existingImages.length <= 3) {
       setError(t('sellerForm.minImagesError'))
@@ -261,7 +258,6 @@ export default function AddPropertyPage() {
     setExistingImages((prev) => [...prev, ...newImages])
   }
 
-  // ── 3D model handlers ──
   const handleModelFileChange = (e) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -270,7 +266,6 @@ export default function AddPropertyPage() {
     }
   }
 
-  // ── Submit ──
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -441,7 +436,6 @@ export default function AddPropertyPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-        {/* Osnovni podaci */}
         <Section title={t('sellerForm.sectionBasic')}>
           <Field label={t('sellerForm.fieldTitle')} required>
             <input
@@ -496,7 +490,6 @@ export default function AddPropertyPage() {
           </Field>
         </Section>
 
-        {/* Lokacija — ručni unos adrese */}
         <Section title={t('sellerForm.sectionLocation')}>
           <div className="grid grid-cols-2 gap-4">
             <Field label={t('sellerForm.fieldStreet')} required>
@@ -575,7 +568,6 @@ export default function AddPropertyPage() {
           </Field>
         </Section>
 
-        {/* Karakteristike */}
         <Section title={t('sellerForm.sectionFeatures')}>
           <div className="grid grid-cols-2 gap-4">
             <Field label={t('sellerForm.fieldPropertyType')} required>
@@ -597,7 +589,6 @@ export default function AddPropertyPage() {
           </div>
         </Section>
 
-        {/* Detalji nekretnine */}
         <Section title={t('sellerForm.sectionDetails')}>
           <div className="grid grid-cols-2 gap-4">
             <Field label={t('sellerForm.fieldYearBuilt')} required>
@@ -652,7 +643,6 @@ export default function AddPropertyPage() {
           </div>
         </Section>
 
-        {/* Pogodnosti / Amenities */}
         <Section title={t('sellerForm.sectionAmenities')}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {allAmenities.map((a) => (
@@ -688,10 +678,8 @@ export default function AddPropertyPage() {
           )}
         </Section>
 
-        {/* Slike */}
         {isEdit ? (
           <Section title={t('sellerForm.sectionImages')}>
-            {/* Existing images */}
             {existingImages.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs text-gray-500">{existingImages.length} {existingImages.length === 1 ? t('common.foto') : t('common.foto')} — {t('sellerForm.firstIsCoverEdit')}</p>
@@ -727,7 +715,6 @@ export default function AddPropertyPage() {
               </div>
             )}
 
-            {/* Add more images */}
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-accent hover:bg-gray-50 transition-colors">
               <ImagePlus size={22} className="text-gray-400 mb-1" />
               <span className="text-sm text-gray-600 font-medium">{t('sellerForm.addImages')}</span>
@@ -790,7 +777,6 @@ export default function AddPropertyPage() {
           </Section>
         )}
 
-        {/* 3D model */}
         <div className="border border-border rounded p-6 space-y-4">
           <div className="flex items-center gap-2">
             <Box size={16} className="text-gray-400" />

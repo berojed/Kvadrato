@@ -3,19 +3,19 @@ import { useAuth } from '@/context/AuthContext'
 import { useI18n } from '@/context/I18nContext'
 
 /**
- * Zaštita ruta po autentifikaciji i roli.
+ *  Protected route for authentication and role-based access control.
  *
- * Primjeri korištenja:
- *   <ProtectedRoute>              – samo prijavljeni korisnici
- *   <ProtectedRoute role="BUYER"> – samo kupci
- *   <ProtectedRoute role="SELLER"> – samo prodavači
+
+ *   <ProtectedRoute>              – only signed-in users
+ *   <ProtectedRoute role="BUYER"> – only buyers
+ *   <ProtectedRoute role="SELLER"> – only sellers
  */
 export default function ProtectedRoute({ children, role }) {
   const { isAuthenticated, loading, profile, isSeller, isBuyer } = useAuth()
   const { t } = useI18n()
   const location = useLocation()
 
-  // Dok se auth učitava, prikaži spinner
+  // Waiting for auth to load, show spinner
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -24,7 +24,7 @@ export default function ProtectedRoute({ children, role }) {
     )
   }
 
-  // Nije prijavljen → redirect na početnu stranicu
+  // Not Authenticated - redirect to home
   if (!isAuthenticated) {
     return <Navigate to="/" replace />
   }
@@ -40,7 +40,7 @@ export default function ProtectedRoute({ children, role }) {
     )
   }
 
-  // Provjera role (ako je specificirana)
+  // Check role (if specified)
   if (role === 'SELLER' && !isSeller) {
     return (
       <div className="container py-24 text-center">

@@ -58,7 +58,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (loading) return // sprječava dvostruki submit
+    if (loading) return // avoiding double submit
     setError(null)
 
     if (form.password !== form.confirmPassword) {
@@ -97,7 +97,7 @@ export default function RegisterPage() {
       return
     }
 
-    // Uspješna registracija — samo provjeri sesiju
+    // Successful registration — just check session
     if (data?.session) {
       setSuccess(true)
       setTimeout(() => navigate('/', { replace: true }), 1500)
@@ -110,7 +110,7 @@ export default function RegisterPage() {
 
   /* ─── Success screen ─── */
   if (success) {
-    // Ako email confirm nije potreban, kratka poruka pa redirect
+    // If email confirmation is not required, show a brief message then redirect
     if (!needsEmailConfirm) {
       return (
         <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -122,7 +122,7 @@ export default function RegisterPage() {
       )
     }
 
-    // Ako email confirm jest potreban
+    // If email confirmation is required, show instructions to check inbox (without auto-redirect)
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
@@ -140,7 +140,7 @@ export default function RegisterPage() {
     )
   }
 
-  /* ─── Korak 1: Odabir role ─── */
+  /* Step 1: Role Selection */
   if (step === 1) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -184,7 +184,7 @@ export default function RegisterPage() {
     )
   }
 
-  /* ─── Korak 2: Forma ─── */
+  /* Step 2: Form */
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">

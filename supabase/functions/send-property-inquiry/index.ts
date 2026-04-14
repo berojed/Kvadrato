@@ -28,7 +28,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const RESEND_FROM = Deno.env.get("RESEND_FROM_EMAIL") ?? "noreply@kvadrato.hr";
 
-// ── Shared CORS headers ────────────────────────────────────────────────────
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -37,13 +36,11 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req: Request) => {
-  // ── CORS preflight ──────────────────────────────────────────────────────
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
-    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return jsonResponse({ status: "error", stored: false, emailSent: false, error: "Nedostaje autorizacija." }, 401);
@@ -63,7 +60,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", stored: false, emailSent: false, error: "Neautorizirani pristup." }, 401);
     }
 
-    // ── Verify caller is a buyer + fetch contact preferences ────────────
+    // Verify caller is BUYER and fetch phone + contact preferences.
     const { data: profile } = await supabase
       .from("user")
       .select(`
@@ -107,14 +104,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Parse body ──────────────────────────────────────────────────────
     const { listingId, content } = await req.json();
 
     if (!listingId || !content?.trim()) {
       return jsonResponse({ status: "error", stored: false, emailSent: false, error: "listingId i content su obavezni." }, 400);
     }
 
-    // ── Fetch listing + seller context ──────────────────────────────────
     const { data: listing, error: listErr } = await supabase
       .from("listing")
       .select(
@@ -132,7 +127,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", stored: false, emailSent: false, error: "Ne možete slati upit za vlastiti oglas." }, 403);
     }
 
-    // ── Resolve seller email + name from public.user ────────────────────
+    // Uses public.user directly, not auth.admin.getUserById (anon key client).
     const { data: sellerProfile } = await supabase
       .from("user")
       .select("email, first_name, last_name")
@@ -148,7 +143,6 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ status: "error", stored: false, emailSent: false, error: "Email prodavača nije dostupan." }, 500);
     }
 
-    // ── Build contact snapshot ─────────────────────────────────────────
     const buyerName =
       [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
       "Kupac";
@@ -243,7 +237,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Response ──────────────────────────────────────────────────────
     if (emailSent) {
       return jsonResponse({ status: "success", stored: true, emailSent: true }, 200);
     } else {
@@ -264,8 +257,6 @@ Deno.serve(async (req: Request) => {
     }, 500);
   }
 });
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {

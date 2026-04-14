@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (loading) return // sprječava dvostruki submit
+    if (loading) return // avoiding double submit
     setLoading(true)
     setError(null)
 
@@ -33,7 +33,6 @@ export default function LoginPage() {
     if (err) {
       if (import.meta.env.DEV) console.error('[LoginPage] Prijava neuspješna:', err.message)
 
-      // Korisniku prilagođene poruke
       const msg =
         err.message === 'Invalid login credentials'
           ? t('auth.invalidCredentials')
@@ -47,9 +46,7 @@ export default function LoginPage() {
       return
     }
 
-    // ── Profile/role validation ─────────────────────────────────────────────
-    // A valid profile with a role is required for the app to function.
-    // If missing, sign out immediately — this is a data integrity issue.
+    // Profile with a valid role is required; missing means a data integrity issue.
     const actualRole = profile?.role?.role_code
     if (!actualRole) {
       if (import.meta.env.DEV) console.error('[LoginPage] Missing profile or role after sign-in')
@@ -58,8 +55,7 @@ export default function LoginPage() {
       return
     }
 
-    // Compare the intent the user selected against the actual role stored in DB.
-    // If they mismatch, sign out immediately and show a clear error.
+    // Role mismatch: sign out immediately and show a descriptive error.
     if (actualRole !== roleIntent) {
       if (import.meta.env.DEV) console.warn('[LoginPage] Role mismatch — intent:', roleIntent, '| actual:', actualRole)
       await signOut()
@@ -71,9 +67,7 @@ export default function LoginPage() {
       return
     }
 
-    // ── Role-aware redirect ──────────────────────────────────────────────────
-    // Honour an in-progress navigation (from) first; otherwise route to the
-    // role-appropriate home. Real permissions are always enforced by ProtectedRoute.
+    // Honour in-progress navigation (from) first; then route to role-appropriate home.
     if (import.meta.env.DEV) console.log('[LoginPage] Prijava uspješna, intent:', roleIntent, '| actual:', actualRole)
     if (from !== '/') {
       navigate(from, { replace: true })
@@ -119,7 +113,6 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">{t('auth.roleHint')}</p>
           </div>
 
           <div>

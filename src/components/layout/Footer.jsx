@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="container py-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-xs text-gray-400 font-medium">
-            &copy; {t('footer.copyright', { year })}
+            {t('footer.copyright', { year })}
           </p>
           <p className="text-xs text-gray-400">
             {t('footer.thesis')}

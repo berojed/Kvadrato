@@ -42,7 +42,9 @@
     "memberSince": "Member since {date}",
     "foto": "photo",
     "fotoSelected": "photo selected",
-    "fotosSelected": "photos selected"
+    "fotosSelected": "photos selected",
+    "error": "Error",
+    "redirecting": "Redirecting..."
   },
   "nav": {
     "properties": "Properties",

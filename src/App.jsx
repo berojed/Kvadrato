@@ -5,7 +5,7 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import ProtectedRoute from '@/components/ui/ProtectedRoute'
 
-// Pages
+// Buyer Pages
 import HomePage from '@/pages/HomePage'
 import PropertiesPage from '@/pages/PropertiesPage'
 import PropertyDetailPage from '@/pages/PropertyDetailPage'

@@ -1,33 +1,10 @@
 import { supabase } from '@/lib/supabase'
 
-/**
- * ─── NAPOMENA O TOKU ───
- * Buyer inquiries are sent via the `send-property-inquiry` Edge Function.
- * The function validates the buyer, rejects self-contact, inserts into the
- * `message` table FIRST (mandatory), then sends email via Resend (secondary).
- *
- * The client calls `supabase.functions.invoke()` — no direct table inserts.
- *
- * Edge Function returns structured responses:
- *   - { status: 'success', stored: true, emailSent: true }     → full success
- *   - { status: 'partial', stored: true, emailSent: false, warning }  → stored, email failed
- *   - { status: 'error',   stored: false, emailSent: false, error }   → full failure
- */
+// Buyer inquiries go through the send-property-inquiry Edge Function.
+// DB insert is mandatory first; email via Resend is secondary.
+// Structured responses: { status: 'success'|'partial'|'error', stored, emailSent }
+// Buyer contact data is resolved server-side; frontend only sends listingId + content.
 
-/**
- * Šalje upit prodavaču za određeni oglas putem Edge Function.
- *
- * Buyer contact data (phone, WhatsApp, Messenger, etc.) is resolved server-side
- * from the buyer's profile — not supplied by the frontend.
- *
- * @param {Object} params
- * @param {string} params.senderId    – buyer user id (for local validation)
- * @param {string} params.recipientId – seller user id (ignored by function, derived from listing)
- * @param {string} params.listingId   – listing id (UUID)
- * @param {string} params.content     – inquiry message text
- *
- * @returns {{ data: { status: string, stored: boolean, emailSent: boolean, warning?: string } | null, error: { message: string } | null }}
- */
 export async function sendMessage({ senderId, recipientId, listingId, content }) {
   if (import.meta.env.DEV) console.log('[messages] sendMessage via Edge Function:', { senderId, listingId })
 
@@ -65,14 +42,10 @@ export async function sendMessage({ senderId, recipientId, listingId, content })
     if (data?.warning) console.warn('[messages] Email warning:', data.warning)
   }
 
-  // Return structured data for the UI to distinguish success vs partial
   return { data, error: null }
 }
 
-/**
- * Dohvaća sve poruke između dva korisnika za određeni oglas.
- * Uses live table columns: buyer_id, seller_id, listing_id, content, notes, timestamp
- */
+// Uses live table columns: buyer_id, seller_id, listing_id, content, notes, timestamp
 export async function getMessages({ userId, otherUserId, listingId }) {
   if (import.meta.env.DEV) console.log('[messages] getMessages:', { userId, otherUserId, listingId })
 
@@ -100,17 +73,7 @@ export async function getMessages({ userId, otherUserId, listingId }) {
   return { data: data ?? [], error }
 }
 
-/**
- * Dohvaća povijest poruka za specifičnu kombinaciju kupac + prodavač + oglas.
- * Rezultati su poredani po vremenu slanja – najnovija poruka je prva.
- *
- * @param {Object} params
- * @param {string} params.buyerId   – UUID kupca
- * @param {string} params.sellerId  – UUID prodavača
- * @param {string} params.listingId – UUID oglasa
- *
- * @returns {{ data: Array<{ content: string, timestamp: string }>, error: object | null }}
- */
+// Fetches prior messages for a buyer-seller-listing triple, newest first.
 export async function getBuyerMessageHistory({ buyerId, sellerId, listingId }) {
   if (import.meta.env.DEV) {
     console.log('[messages] getBuyerMessageHistory:', { buyerId, sellerId, listingId })

@@ -13,5 +13,12 @@
       "runtimeArgs": ["node_modules/.bin/vite", "preview", "--port", "4173"],
       "port": 4173
     }
+  ,
+    {
+      "name": "Prototype",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/tmp/serve-prototype.js"],
+      "port": 5500
+    }
   ]
 }
