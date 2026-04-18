@@ -182,7 +182,15 @@
       "Bash(cp \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni.docx\" /tmp/test_extract/zavrsni.docx)",
       "Bash(unzip -q zavrsni.docx -d unpacked)",
       "Bash(NODE_PATH=$\\(npm root -g\\) node /tmp/build_testiranje.cjs)",
-      "Bash(ls -lh /Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni*.docx)"
+      "Bash(ls -lh /Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni*.docx)",
+      "Bash(git rm:*)",
+      "Bash(cat /tmp/zavrsni_fmt/[Content_Types].xml)",
+      "Bash(pandoc \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni_strict_formatirano_skraceno.docx\" -o /tmp/zavrsni_skraceno.md)",
+      "Bash(rm -rf /tmp/skraceno_unpack)",
+      "Bash(cp \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni_strict_formatirano_skraceno.docx\" \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni_strict_formatirano_skraceno_backup.docx\")",
+      "Bash(ls -la /Users/bernard/Desktop/Kvadrato/Dokumentacija/*.docx)",
+      "Bash(ls -la \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni_strict_formatirano_skraceno\"*.docx)",
+      "Bash(unzip -o -q \"/Users/bernard/Desktop/Kvadrato/Dokumentacija/Zavrsni_strict_formatirano_skraceno.docx\" -d emdash_check)"
     ]
   }
 }
