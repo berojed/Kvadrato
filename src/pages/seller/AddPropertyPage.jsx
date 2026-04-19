@@ -271,21 +271,18 @@ export default function AddPropertyPage() {
     setLoading(true)
     setError(null)
 
-    // Validate manual address fields
     if (!form.ulica.trim() || !form.kucniBroj.trim() || !form.grad.trim() || !form.zupanija.trim() || !form.postanskiBroj.trim()) {
       setError(t('sellerForm.addressRequired'))
       setLoading(false)
       return
     }
 
-    // Validate yearBuilt
     if (!form.yearBuilt) {
       setError(t('sellerForm.yearRequired'))
       setLoading(false)
       return
     }
 
-    // Validate minimum images
     const totalImages = isEdit
       ? existingImages.length
       : imageFiles.length
@@ -295,14 +292,13 @@ export default function AddPropertyPage() {
       return
     }
 
-    // Validate coordinates (marker must be placed on map)
+    // Marker must be placed on map.
     if (form.latitude == null || form.longitude == null) {
       setError(t('sellerForm.mapRequired'))
       setLoading(false)
       return
     }
 
-    // Validate property details
     if (!form.conditionId || !form.heatingId || !form.furnishingId) {
       setError(t('sellerForm.detailsRequired'))
       setLoading(false)
@@ -311,7 +307,6 @@ export default function AddPropertyPage() {
 
     const streetAddress = [form.ulica.trim(), form.kucniBroj.trim()].filter(Boolean).join(' ')
 
-    // Resolve location from manual address fields
     const { locationId, error: locErr } = await resolveLocationId({
       city: form.grad.trim(),
       stateRegion: form.zupanija.trim(),

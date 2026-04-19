@@ -35,7 +35,7 @@ export async function createVisitRequest({ buyerId, listingId, requestedDatetime
     return { data: null, error: ownerErr }
   }
   if (listingRow.seller_id === buyerId) {
-    if (import.meta.env.DEV) console.warn('[visits] createVisitRequest – odbijeno: prodavač ne može zakazati vlastiti oglas')
+    if (import.meta.env.DEV) console.warn('[visits] createVisitRequest – odbijeno: prodavatelj ne može zakazati vlastiti oglas')
     return { data: null, error: { message: 'SELF_VIEWING_DENIED' } }
   }
 

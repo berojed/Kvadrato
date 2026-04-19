@@ -27,11 +27,11 @@ export default function PropertyCard({ listing, className, linkPrefix = '/proper
   const property = listing.property
   if (!property) return null
 
-  // Fimd primary image or first by sort_order
+  // Find primary image or first by sort_order (non-mutating sort)
   const images = property.image ?? []
   const primaryImage =
     images.find((img) => img.is_primary) ??
-    images.sort((a, b) => a.sort_order - b.sort_order)[0]
+    [...images].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]
 
   // Location
   const location = property.location

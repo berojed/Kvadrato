@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getListings } from '../services/properties'
 
-const DEFAULT_FILTERS = {
+export const DEFAULT_PROPERTY_FILTERS = {
   search: '',
   propertyType: '',
   listingType: '',
@@ -27,7 +27,7 @@ export function useProperties(initialFilters = {}) {
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS, ...initialFilters })
+  const [filters, setFilters] = useState({ ...DEFAULT_PROPERTY_FILTERS, ...initialFilters })
 
   const pageSize = 12
 
@@ -69,7 +69,7 @@ export function useProperties(initialFilters = {}) {
   }, [])
 
   const resetFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS)
+    setFilters(DEFAULT_PROPERTY_FILTERS)
   }, [])
 
   const loadMore = useCallback(() => {

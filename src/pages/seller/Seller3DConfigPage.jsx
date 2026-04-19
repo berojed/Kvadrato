@@ -261,7 +261,6 @@ export default function Seller3DConfigPage() {
     setLookAtTarget(ov.target)
   }, [sceneBounds])
 
-  // ── Render states ──
   if (pageLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">

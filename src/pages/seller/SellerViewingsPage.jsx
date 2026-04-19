@@ -59,8 +59,8 @@ function ViewingRow({ visit, isUpcoming, actionLoading, onAction, t, locale }) {
             {property?.title ?? t('common.property')}
           </Link>
           {isUpcoming && (
-            <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0', status.className)}>
-              {status.label}
+            <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0', statusClassName)}>
+              {statusLabel}
             </span>
           )}
         </div>

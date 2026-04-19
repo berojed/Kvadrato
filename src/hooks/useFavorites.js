@@ -27,38 +27,38 @@ export function useFavorites() {
   }, [fetchFavorites])
 
   const toggleFavorite = useCallback(
-    async (propertyId) => {
+    async (listingId) => {
       if (!isAuthenticated || !user || !isBuyer) return { error: 'Nedostupno' }
 
-      const currentlyFav = favoriteIds.has(propertyId)
+      const currentlyFav = favoriteIds.has(listingId)
 
       // Optimistic update.
       setFavoriteIds((prev) => {
         const next = new Set(prev)
         if (currentlyFav) {
-          next.delete(propertyId)
+          next.delete(listingId)
         } else {
-          next.add(propertyId)
+          next.add(listingId)
         }
         return next
       })
 
       let result
       if (currentlyFav) {
-        result = await removeFavorite(user.id, propertyId)
+        result = await removeFavorite(user.id, listingId)
         if (result.error) {
           // Revert on error.
-          setFavoriteIds((prev) => new Set([...prev, propertyId]))
+          setFavoriteIds((prev) => new Set([...prev, listingId]))
         } else {
-          setFavorites((prev) => prev.filter((f) => f.listing_id !== propertyId))
+          setFavorites((prev) => prev.filter((f) => f.listing_id !== listingId))
         }
       } else {
-        result = await addFavorite(user.id, propertyId)
+        result = await addFavorite(user.id, listingId)
         if (result.error) {
           // Revert on error.
           setFavoriteIds((prev) => {
             const next = new Set(prev)
-            next.delete(propertyId)
+            next.delete(listingId)
             return next
           })
         } else {

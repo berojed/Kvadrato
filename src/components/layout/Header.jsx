@@ -44,12 +44,9 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-[var(--color-background)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
       <div className="container">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight">
-            <div className="w-8 h-8 bg-gradient-to-br from-accent to-orange-500 rounded-lg flex items-center justify-center shadow-soft-sm">
-              <span className="text-white text-sm font-bold">K</span>
-            </div>
-            <span>Kvadrato</span>
+          {/* Wordmark */}
+          <Link to="/" className="font-bold text-xl tracking-tight">
+            Kvadrato
           </Link>
 
           {/* Desktop Nav */}
