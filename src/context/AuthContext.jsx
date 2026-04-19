@@ -12,11 +12,12 @@ export function AuthProvider({ children }) {
   // Prevents double-invocation in React StrictMode dev.
   const initialized = useRef(false)
 
-  // If the trigger is inactive, profile won't exist; auth still works with profile === null.
+  // Returns { data, error }. Caller decides whether a missing/errored profile means
+  // the session is stale and must be purged.
   const fetchProfile = async (userId) => {
     if (!userId) {
       setProfile(null)
-      return null
+      return { data: null, error: null }
     }
 
     if (import.meta.env.DEV) console.log('[AuthContext] Dohvaćam profil za:', userId)
@@ -28,19 +29,29 @@ export function AuthProvider({ children }) {
       .single()
 
     if (error) {
-      // PGRST116 = no rows found; trigger hasn't created the profile yet.
       if (error.code === 'PGRST116') {
-        if (import.meta.env.DEV) console.warn('[AuthContext] Profil ne postoji u "user" tablici (trigger nije aktivan)')
+        if (import.meta.env.DEV) console.warn('[AuthContext] Profil ne postoji u "user" tablici (PGRST116)')
       } else {
         if (import.meta.env.DEV) console.error('[AuthContext] Greška pri dohvatu profila:', error.message)
       }
       setProfile(null)
-      return null
+      return { data: null, error }
     }
 
     if (import.meta.env.DEV) console.log('[AuthContext] Profil dohvaćen:', data?.email, '| Rola:', data?.role?.role_code)
     setProfile(data)
-    return data
+    return { data, error: null }
+  }
+
+  // If a restored session points to a user whose profile is missing or unreachable,
+  // the JWT is stale (deleted user / wrong Supabase project / expired). Purge it
+  // so the app isn't stuck in a half-authenticated limbo state.
+  const purgeStaleSession = async (reason) => {
+    if (import.meta.env.DEV) console.warn('[AuthContext] Čistim zastarjelu sesiju:', reason)
+    try { await supabase.auth.signOut() } catch { /* ignore */ }
+    setSession(null)
+    setUser(null)
+    setProfile(null)
   }
 
   useEffect(() => {
@@ -51,12 +62,21 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession().then(async ({ data: { session: s }, error }) => {
       if (import.meta.env.DEV) console.log('[AuthContext] Početna sesija:', s ? `✓ ${s.user.email}` : '✗ nema')
-      if (error && import.meta.env.DEV) console.error('[AuthContext] getSession greška:', error.message)
+      if (error) {
+        if (import.meta.env.DEV) console.error('[AuthContext] getSession greška:', error.message)
+        await purgeStaleSession('getSession error')
+        setLoading(false)
+        return
+      }
 
       setSession(s)
       setUser(s?.user ?? null)
       if (s?.user) {
-        await fetchProfile(s.user.id)
+        const { error: profileError } = await fetchProfile(s.user.id)
+        // Any profile-fetch failure on an active session -> session is stale. Sign out.
+        if (profileError) {
+          await purgeStaleSession(`fetchProfile error: ${profileError.code || profileError.message}`)
+        }
       }
       setLoading(false)
     })
@@ -131,7 +151,8 @@ export function AuthProvider({ children }) {
       // Set state immediately; do not wait for onAuthStateChange.
       setUser(data.user)
       setSession(data.session)
-      profileData = await fetchProfile(data.user.id)
+      const { data: p } = await fetchProfile(data.user.id)
+      profileData = p
     }
 
     // Return profile alongside auth data so callers can do role validation
