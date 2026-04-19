@@ -22,11 +22,23 @@ export function AuthProvider({ children }) {
 
     if (import.meta.env.DEV) console.log('[AuthContext] Dohvaćam profil za:', userId)
 
-    const { data, error } = await supabase
-      .from('user')
-      .select('*, role(role_id, role_code)')
-      .eq('user_id', userId)
-      .single()
+    let data, error
+    try {
+      const res = await supabase
+        .from('user')
+        .select('*, role(role_id, role_code)')
+        .eq('user_id', userId)
+        .single()
+      data = res.data
+      error = res.error
+    } catch (thrown) {
+      // supabase-js normally surfaces issues via the `error` field, but
+      // auth-layer failures (e.g. AbortError from the internal lock, network
+      // aborts) can throw. Convert to the same shape so callers have one path.
+      if (import.meta.env.DEV) console.error('[AuthContext] fetchProfile threw:', thrown?.message || thrown)
+      setProfile(null)
+      return { data: null, error: thrown instanceof Error ? thrown : new Error(String(thrown)) }
+    }
 
     if (error) {
       if (error.code === 'PGRST116') {
